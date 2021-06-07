@@ -1,0 +1,19 @@
+Feel free to use "eccentricdark" under the terms specified in the LICENSE file as 
+long as you cite the following paper in any publications that use "eccentricdark":  
+
+N. DePorzio. eccentricdark: simulating eccentricity distributions of massive binary formation channels.
+Springer New York, 2009. #Change these lines once paper is published
+
+A BibTeX entry for LaTeX users is:
+
+@Article{,
+   author = {Nicholas DePorzio},
+   title = {eccentricdark: simulating eccentricity distributions of massive binary formation channels.},
+   journal = {}, 
+   volume = {}, 
+   number = {}, 
+   year = {2019},
+   url = {},
+   DOI = {},
+   pages = {} 
+ }
