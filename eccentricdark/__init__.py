@@ -1,3 +1,6 @@
+# The lines in this file are executed upon importing the 
+# 'eccentricdark' package in a Python environment.
+
 import os
 import dill
 import scipy.integrate
@@ -7,12 +10,17 @@ from scipy import interpolate
 from scipy.stats.kde import gaussian_kde
 from scipy.optimize import curve_fit
 
-from .constants import ()
-from .equations import ()
+#from .constants import ()
+#from .equations import ()
 #from ./lookup/
-from .world import ()
-from .cosmology import ()
-from .analysis import ()
-from .snr import ()
-from .plotting import ()
+#from .world import ()
+#from .cosmology import ()
+#from .analysis import ()
+#from .snr import ()
+#from .plotting import ()
 
+print(
+    "You have loaded the eccentricdark - a Python package for modeling"
+    + " experimental sensitivity to black hole binary formation "
+    + " channels through eccentricity observations..."
+)
