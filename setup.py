@@ -15,7 +15,7 @@ setup(name='eccentricdark',
       tests_require=['nose', 'coverage'],
       # dependency_links=[''],
       scripts=[
-        '' 
+      #  '' 
       ], 
       install_requires=[
           'numpy',
