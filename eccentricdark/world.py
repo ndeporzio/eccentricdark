@@ -3,6 +3,7 @@
 
 import os
 import numpy as np
+import eccentricdark as ed
 
 class World: 
 
@@ -11,7 +12,6 @@ class World:
         self, 
         chi_max, # Units: Mpc
         annual_merger_rate, # Units: binaries * yr^-1 * Mpc^-3  
-        buffer_size=10000 # TO DO: Implement this...
     ): 
 
         self.chi_max = chi_max
@@ -40,8 +40,6 @@ class World:
             + ' binaries per year.' 
         )
     
-        #populate_world(self)
-    
     
     def populate_world(
         self,
@@ -52,12 +50,16 @@ class World:
         self.mass_distribution = mass_distribution
         self.mass_args = mass_args
 
+        min_chi = 1.0e-9
+
         counter = 0
-        world_mass = 0. #TO DO: not used... 
         world_full = False
-        world_population_m1 = np.zeros(10**9) #TO DO: Improve this 
-        world_population_m2 = np.zeros(10**9) #TO DO: Improve this
-        world_chi_vals = np.zeros(10**9) #TO DO: Improve this
+        world_mass = 0.
+
+        world_population_m1 = np.zeros(np.int(np.floor(self.binary_limit)))  
+        world_population_m2 = np.zeros(np.int(np.floor(self.binary_limit))) 
+        world_chi_vals = np.zeros(np.int(np.floor(self.binary_limit))) 
+        world_mc_vals = np.zeros(np.int(np.floor(self.binary_limit)))
 
         while world_full==False: 
             
@@ -68,7 +70,7 @@ class World:
                     + '% complete...'
                 )
             
-            sample = mass_distribution_sampler(
+            sample = ed.mass_distribution_sampler(
                 form=self.mass_distribution, 
                 args=mass_args
             )
@@ -77,23 +79,27 @@ class World:
             sample_m2 = sample[1]
             
             M = sample_m1+sample_m2
+            mc = ed.m_chirp(sample_m1, sample_m2) 
             
-            sample_chi = np.max([10.0**-9, np.random.uniform(0., self.chi_max)])
+            sample_chi = np.random.uniform(min_chi, self.chi_max)
 
-            if (counter>self.binary_limit):
+            if (counter>=np.int(np.floor(self.binary_limit))):
                 world_full=True
             else: 
                 world_population_m1[counter] = sample_m1
                 world_population_m2[counter] = sample_m2
                 world_chi_vals[counter] = sample_chi
+                world_mc_vals[counter] = mc
                 world_mass += M 
                 counter += 1
 
         cut_idx = np.argmin(world_population_m1)
 
-        self.m1_values = world_population_m1[0:cut_idx] #np.array([world_population_m1[0:cut_idx]])
-        self.m2_values = world_population_m2[0:cut_idx] #np.array([world_population_m2[0:cut_idx]])
-        self.chi_values = world_chi_vals[0:cut_idx] #np.array([world_chi_vals[0:cut_idx]])
+        self.world_mass = world_mass
+        self.m1_values = world_population_m1
+        self.m2_values = world_population_m2
+        self.chi_values = world_chi_vals
+        self.mc_values = world_mc_vals
         
         max_len=len(self.chi_values)
         print("World contains: ", max_len, " binaries...")
@@ -107,161 +113,78 @@ class World:
         if os.path.exists(filepath):
             print("Deleting pre-existing file at path...")
             os.remove(filepath)
-        else:
-            print("Creating file at path...")
-            header_text = (
-                'Max comoving distance [Mpc]: ' 
-                + f'{self.chi_max:.3f}'
-                + '\n'
-                + 'Annual Merger Rate [yr^-1 Mpc^-3]: ' 
-                + f'{self.annual_merger_rate:.3e}'
-                + '\n'
-                + 'Mass distribution: ' 
-                + self.mass_distribution
-                + '\n'
-                + 'Mass args: ' 
-                + str(self.mass_args)
+
+        print("Creating file at path...")
+        header_text = (
+            'Max comoving distance [Mpc]: ' 
+            + f'{self.chi_max:.3f}'
+            + '\n'
+            + 'Annual Merger Rate [yr^-1 Mpc^-3]: ' 
+            + f'{self.annual_merger_rate:.3e}'
+            + '\n'
+            + 'Mass distribution: ' 
+            + self.mass_distribution
+            + '\n'
+            + 'Mass args: ' 
+            + str(self.mass_args)
+            + '\n'
+            + 'Data columns: chi, m1, m2, mc'
+        )
+        
+        data = np.stack(
+            (self.chi_values, self.m1_values, self.m2_values, self.mc_values),
+            axis=1
+        )
+
+        np.savetxt(filepath, data, header=header_text, comments='#')
+
+def load_world(filepath): 
+    header_text = []
+
+    if os.path.exists(filepath):
+        print("Loading world file at path: "+filepath)     
+        with open(filepath, 'r') as f: 
+            lines = f.readlines()
+        for line in lines: 
+            if (line[0]=='#'): 
+                header_text.append(line)
+
+        chi_max = float(header_text[0].split(
+            'Max comoving distance [Mpc]: ')[1])
+        annual_merger_rate = float(header_text[1].split(
+            'Annual Merger Rate [yr^-1 Mpc^-3]: ')[1])
+        mass_distribution = header_text[2].split(
+            'Mass distribution: ')[1]
+        mass_args = header_text[3].split(
+            'Mass args: ')[1]
+        if (mass_args[0:4]=='None'): 
+            mass_args=None
+        else: 
+            mass_args = np.array(
+                mass_args[1:-1].split(', '), 
+                dtype='float'
             )
-        
-            data = np.stack(
-                (self.chi_values, self.m1_values, self.m2_values),
-                axis=1
-            )
 
-            np.savetxt(filepath, data, header=header_text, comments='#')
+        data = np.loadtxt(filepath)
 
+        w = ed.World(chi_max, annual_merger_rate)
+        w.mass_distribution = mass_distribution
+        w.mass_args = mass_args
+        w.chi_values = data[:, 0]
+        w.m1_values = data[:, 1]
+        w.m2_values = data[:, 2]
+        w.mc_values = data[:, 3]
+        w.world_mass = np.sum(w.m1_values + w.m2_values)
 
-def mass_distribution_sampler(
-    form, 
-    args=None): 
+        print("World loaded: ")
+        print("\t Max comoving distance [Mpc]: ", chi_max)
+        print("\t Annual Merger Rate [yr^-1 Mpc^-3]: ", annual_merger_rate)
+        print("\t Mass distribution: ", mass_distribution)
+        print("\t Mass args: ", mass_args)
 
-    if form=='flat': 
-        return np.random.uniform(
-            low=args[0], 
-            high=args[1], 
-            size=1
-        ) #Units M_solar
-    elif form=='gaussian': 
-        return np.random.normal(
-            loc=args[0], 
-            scale=args[1], 
-            size=1
-        ) #Units M_solar      
-    elif form=='1602.03842': #Double check this 
-        def m1_pdf(m1): #To do: not used... 
-            if m1<5: 
-                return 0.
-            elif m1>100: 
-                return 0. 
-            elif ((m1>=5) and (m1<=100)): 
-                normalization = (
-                    1.35 
-                    / (np.power(5., -1.35) - np.power(100., -1.35))
-                )
-                return (normalization * np.power(m1, -2.35))
-            else: 
-                return False 
-            
-        def m1_cdf(m1): #To do: not used...
-            if m1<5: 
-                return 0.
-            elif m1>100: 
-                return 1. 
-            elif ((m1>=5) and (m1<=100)): 
-                return (
-                    (np.power(5., -1.35) - np.power(m1, -1.35))
-                    / (np.power(5., -1.35) - np.power(100., -1.35))
-                )
-            else: 
-                return False 
-            
-        def m1_invcdf(cdf): 
-            return (
-                np.power(
-                    np.power(5., -1.35) 
-                    - cdf * (
-                        np.power(5.,-1.35)
-                        - np.power(100., -1.35)
-                    ), 
-                -1./1.35)
-            )
+        return w
+      
+    else: 
+        print("Invalid filepath...")
         
-        random_sample = np.random.random(1)
-        m1 = m1_invcdf(random_sample)
-        
-        m2_max = (100.-m1)
-        qmin = (5./m1)
-        qmax = 1.
 
-        def q_pdf(q): #To do: not used... 
-            if (q<(5./m1)): 
-                return 0.
-            elif (q>1.):
-                return 0
-            elif ((q>=(5./m1)) and (q<=1.)): 
-                return 1./(qmax-qmin)
-            else: 
-                return False
-        
-        def q_cdf(q): #To do: not used...
-            if (q<(5./m1)): 
-                return 0.
-            elif (q>1.):
-                return 1
-            elif ((q>=(5./m1)) and (q<=1.)): 
-                return (1./(qmax-qmin))*(q-qmin)
-            else: 
-                return False            
-            
-        def q_invcdf(cdf): 
-            return (cdf*(qmax-qmin) + qmin) 
-        
-        random_sample = np.random.random(1)
-        q = q_invcdf(random_sample)
-        m2 = m1 * q
-        
-        return (m1, m2) 
-        
-    elif form=='1907.02283': 
-        def m1_pdf(m1):
-            if m1<5: 
-                return 0.
-            elif m1>50: 
-                return 0. 
-            elif ((m1>=5) and (m1<=50)): 
-                normalization = (
-                    1.3 / 
-                    (np.power(5., -1.3) - np.power(50., -1.3))
-                )
-                return (normalization * np.power(m1, -2.3))
-            else: 
-                return False 
-            
-        def m1_cdf(m1): 
-            if m1<5: 
-                return 0.
-            elif m1>50: 
-                return 1. 
-            elif ((m1>=5) and (m1<=50)): 
-                return (
-                    (np.power(5., -1.3) - np.power(m1, -1.3))
-                    / (np.power(5., -1.3) - np.power(50., -1.3))
-                )
-            else: 
-                return False 
-            
-        def m1_invcdf(cdf): 
-            return np.power(
-                np.power(5., -1.3) 
-                - cdf * (
-                    np.power(5.,-1.3)
-                    - np.power(50., -1.3)
-                ), -1./1.3
-            )
-        
-        random_sample = np.random.random(1)
-        m1  = m1_invcdf(random_sample)
-        m2 = float(m1)  
-
-        return (m1, m2) 
-    
