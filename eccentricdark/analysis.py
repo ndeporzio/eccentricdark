@@ -47,6 +47,7 @@ class Analysis:
         self.fptable = np.geomspace(self.fpmin, self.fpmax, self.fpsteps) 
 
         self.dNdfp = np.zeros((len(self.world.mc_values), len(self.fptable)))
+        self.N = np.zeros((len(self.world.mc_values), len(self.fptable)))
         for mcidx, mcval in enumerate(self.world.mc_values):
             if ((mcidx%int(np.floor(len(self.world.mc_values)/100.)))==0):
                 print(
@@ -55,19 +56,27 @@ class Analysis:
                     + '% complete...'
                 )
             for fpidx, fpval in enumerate(self.fptable):
-                if mcidx==0:  
-                    self.dNdfp[mcidx, fpidx] = ed.dNdfp_estarfixed_mcfixed(
-                        R=self.world.annual_merger_rate, 
-                        chimax=self.world.chi_max, 
-                        mc=mcval, 
-                        fp=fpval, 
-                        fpstar=self.fpstar, 
-                        estar=self.estar)
-                else: 
-                    self.dNdfp[mcidx, fpidx] = (
-                        self.dNdfp[0, fpidx] 
-                        * np.power(mcval/self.world.mc_values[0], -5./3.)
-                    )
+                self.N[mcidx, fpidx] = ed.N_estarfixed(
+                    R=self.world.annual_merger_rate, 
+                    f=fpval,
+                    chimax=self.world.chi_max, 
+                    mass_distribution=self.world.mass_distribution, 
+                    estar=self.estar, 
+                    fpstar=self.fpstar
+                )
+                #if mcidx==0:  
+                #    self.dNdfp[mcidx, fpidx] = ed.dNdfp_estarfixed_mcfixed(
+                #        R=self.world.annual_merger_rate, 
+                #        chimax=self.world.chi_max, 
+                #        mc=mcval, 
+                #        fp=fpval, 
+                #        fpstar=self.fpstar, 
+                #        estar=self.estar)
+                #else: 
+                #    self.dNdfp[mcidx, fpidx] = (
+                #        self.dNdfp[0, fpidx] 
+                #        * np.power(mcval/self.world.mc_values[0], -5./3.)
+                #    )
 
 
         self.dNdfp_interp = [

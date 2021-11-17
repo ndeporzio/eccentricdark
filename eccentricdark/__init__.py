@@ -18,14 +18,16 @@ from .constants import (
     Omega_m, 
     Omega_k, 
     Omega_lambda,
-    gamma
+    gamma, 
+    dtevolve
 )
 from .world import (
     World, 
     load_world
 )
 from .massdistributions import (
-    mass_distribution_sampler
+    mass_distribution_sampler,
+    mc_pdf
 )
 from .cosmology import (
     Cosmology,
@@ -42,15 +44,36 @@ from .equations import (
     e_solver, 
     F_script, 
     dtdfp, 
-    dNdfp_estarfixed_mcfixed
+    dNdfp_estarfixed_mcfixed,
+    N_estarfixed,
+    fpeak,
+    dadt,
+    dedt,
+    tmerge,
+    afe,
+    BBHevolve,
+    fpr, 
+    integrand,
+    snrintsol,
+    SNR_LISA,
+    roffmSNR8
 )
 from .analysis import (
     Analysis
 )
 
 #from ./lookup/
-#from .snr import ()
+from .snr import (
+    SnLISA,
+    SnAcc, 
+    SnSn, 
+    SnOmn,
+    SnGal,
+    SnLISAdefault
+)
 #from .plotting import ()
+
+#from .methods import()
 
 print(
     "You have loaded the eccentricdark - a Python package for modeling"

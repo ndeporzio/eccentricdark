@@ -1,6 +1,8 @@
 # The functions here define the binary mass distribution functions...
 
+import scipy
 import numpy as np
+import eccentricdark as ed
 
 def mass_distribution_sampler(
     form,
@@ -146,4 +148,13 @@ def mass_distribution_sampler(
         m2 = float(m1)
 
         return (m1, m2)
+
+
+def mc_pdf(
+    mc, 
+    form,
+    args=None):
+    
+    if form=='1907.02283':
+        return (np.power(mc, -2.3)/4.3852441155286797e-41) 
                     

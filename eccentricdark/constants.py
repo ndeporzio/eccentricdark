@@ -1,4 +1,4 @@
-
+import eccentricdark as ed
 
 G = 6.674e-11 #Units: N * m^2 * kg^-2
 c = 3.0e8 #Units: m * s^-1 
@@ -19,3 +19,5 @@ Omega_k = omega_k/(h**2.)
 Omega_lambda = omega_lambda/(h**2.)
 
 gamma = 1.1954 # 1907.02283
+
+dtevolve = ((10.**-2.4)*year_in_seconds)
