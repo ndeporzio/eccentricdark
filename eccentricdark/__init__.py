@@ -1,6 +1,9 @@
 # The lines in this file are executed upon importing the 
 # 'eccentricdark' package in a Python environment.
 
+from .chidistributions import (
+    chi_distribution_sampler
+)
 from .constants import (
     G, 
     c, 
@@ -37,11 +40,16 @@ from .cosmology import (
     comoving_volume, 
     redshift_solver
 )
+from .eccentricitydistributions import (
+    estar_sampler
+)
 from .equations import (
     m_chirp, 
     G_script, 
     H_script, 
-    e_solver, 
+    e_to_fp_interpolator,
+    e_solver,
+    e_solver_2, 
     F_script, 
     dtdfp, 
     dNdfp_estarfixed_mcfixed,

@@ -26,6 +26,28 @@ def H_script( # 1907.02283, eq 4
         / np.power((1.-np.power(e, 2.))*G_script(e), 3./2.)
     ) # Unitless
 
+
+def e_to_fp_interpolator(
+    fp_star, 
+    e_star
+    ): 
+
+    e_offset = 1.0e-9
+
+    bin_count = int(1e6)
+
+    e_interp_table = np.linspace(0.+e_offset, 1.-e_offset, bin_count)
+    H_interp_table = H_script(e_interp_table)
+    fp_interp_table = (H_script(e_interp_table)/H_script(e_star))*fp_star
+
+    fp_max = fp_interp_table[0]
+    fp_min = fp_interp_table[-1]
+
+    fp_of_e_interp = interpolate.interp1d(e_interp_table, fp_interp_table)
+    e_of_fp_interp = interpolate.interp1d(fp_interp_table, e_interp_table) 
+
+    return fp_min, fp_max, fp_of_e_interp, e_of_fp_interp 
+
 def e_solver(
     f_p,
     fp_star,
@@ -52,6 +74,22 @@ def e_solver(
         e_val = scipy.optimize.bisect(solverfunc, 0.+e_offset, 1.-e_offset)
         return e_val # Unitless
 
+def e_solver_2(
+    fp,
+    fp_max, 
+    fp_min, 
+    e_of_fp):
+
+    if (fp < fp_min): 
+        print('This peak frequency never occurs - eccentricity saturated at e=1!')
+        return 1
+    elif (fp > fp_max): 
+        print('This peak frequency never occurs - eccentricity saturated at e=0!')
+        return 0
+    else: 
+        return e_of_fp(fp) 
+
+
 def F_script(e): # 1907.02283, eq 6 
     return (
         (
@@ -64,13 +102,16 @@ def F_script(e): # 1907.02283, eq 6
         , -1.)
     )
 
-def dtdfp(mc, fp, e): # 1907.02283, eq 5
+def dtdfp(
+    mc, # in Msun  
+    fp, 
+    e): # 1907.02283, eq 5
     return (
         (
             (5.*np.power(ed.c, 5.)) 
             / (96*np.power(np.pi, 8./3.))
         )
-        * np.power(ed.G * mc, -5./3.)
+        * np.power(ed.G * mc * ed.msun_in_kg, -5./3.)
         * np.power(fp, -11./3.)
         * ed.F_script(e) 
     )
@@ -165,7 +206,7 @@ def tmerge(fp, e, m1, m2):
     
     return val 
 
-def afe(fp, e, m1, m2): 
+def afe(fp, e, m1, m2): # semi-major axis "a" as a function of "e, fp, m1, m2"
     m = m1 + m2
 
     val = (
@@ -214,7 +255,7 @@ def BBHevolve(                          #Fast
                 break 
                 
 
-    return [t, a, e, merger]    
+    return [np.array(t).flatten(), np.array(a).flatten(), np.array(e).flatten(), merger]    
 
 def fpr(fp0, e0, m1, m2): 
 
@@ -240,11 +281,11 @@ def fpr(fp0, e0, m1, m2):
     
     return val 
 
-def integrand(fp0, e0, m1, m2): #Fast 
+def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds)): #Fast 
 
     m = m1 + m2
 
-    BBHsol = ed.BBHevolve(fp0, e0, m1, m2)
+    BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tf)
     t = BBHsol[0]
     a = BBHsol[1]
     e = BBHsol[2]
@@ -268,8 +309,9 @@ def integrand(fp0, e0, m1, m2): #Fast
 def snrintsol(fp0, e0, m1, m2, ttoday): #Slow
      
     m = m1 + m2
+    mu = m1*m2/m
     
-    BBHsol = ed.BBHevolve(fp0, e0, m1, m2)
+    BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
     t = BBHsol[0]
     a = BBHsol[1]
     e = BBHsol[2]
@@ -299,7 +341,6 @@ def snrintsol(fp0, e0, m1, m2, ttoday): #Slow
             t[idx]=t[idx-1]+dt
 
     for idx in range(len(t)):
-        print(idx, "/", len(t)-1)
         solp[idx] = ed.integrand(fp0, e0, m1, m2)(t[idx])
 
         if (idx!=(len(t)-1)): #do for all but last entry 
@@ -324,11 +365,18 @@ def SNR_LISA(r, fp0, e0, m1, m2, ttoday):
     return val 
 
 
-def roffmSNR8(f, m): 
-    return (
-        (100./8.)
-        * ((10.**6) * ed.pc_in_meters)
-        * ed.SNR_LISA(100.*(10.**6)*ed.pc_in_meters, f, 0., m, m/4., 10.*ed.year_in_seconds)
-    )
+def roffmSNR8(
+    r, # Mpc 
+    fp,
+    e,
+    m1,  # Msun
+    m2, 
+    t #years
+    ): 
 
+    return (
+        (r/8.)
+        * ((10.**6) * ed.pc_in_meters)
+        * ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds)
+    )
 

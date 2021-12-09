@@ -3,6 +3,7 @@
 
 import os
 import numpy as np
+import scipy
 import eccentricdark as ed
 
 class World: 
@@ -13,6 +14,9 @@ class World:
         chi_max, # Units: Mpc
         annual_merger_rate, # Units: binaries * yr^-1 * Mpc^-3  
     ): 
+
+        self.world_mass=None
+        self.is_evolved=False
 
         self.chi_max = chi_max
         self.annual_merger_rate = annual_merger_rate
@@ -44,13 +48,15 @@ class World:
     def populate_world(
         self,
         mass_distribution,
-        mass_args=None
+        mass_args=None, 
+        chi_distribution=None, 
+        chi_args=None
     ):   
 
         self.mass_distribution = mass_distribution
         self.mass_args = mass_args
-
-        min_chi = 1.0e-9
+        self.chi_distribution = chi_distribution
+        self.chi_args = chi_args
 
         counter = 0
         world_full = False
@@ -80,8 +86,11 @@ class World:
             
             M = sample_m1+sample_m2
             mc = ed.m_chirp(sample_m1, sample_m2) 
-            
-            sample_chi = np.random.uniform(min_chi, self.chi_max)
+
+            sample_chi = ed.chi_distribution_sampler(
+                chi_distribution, 
+                chi_args
+            )
 
             if (counter>=np.int(np.floor(self.binary_limit))):
                 world_full=True
@@ -104,6 +113,144 @@ class World:
         max_len=len(self.chi_values)
         print("World contains: ", max_len, " binaries...")
         
+    def initialize_eccentricities(
+        self,
+        estar_distribution,
+        args=None
+    ):
+
+        if (self.world_mass==None): 
+            print("Need to 'populate_world' masses first...")
+            return
+
+        self.estar_distribution = estar_distribution
+        self.estar_args = args
+        self.estar = np.zeros(len(self.mc_values))
+
+        for mc_idx, mc_val in enumerate(self.mc_values): 
+            self.estar[mc_idx] = ed.estar_sampler(estar_distribution, args)
+
+    def solve_evolution(
+        self,
+        mode
+    ): 
+        if (self.world_mass==None):
+            print("Need to 'populate_world' masses first...")
+            return
+    
+        self.fp_min = np.zeros(len(self.mc_values))
+        self.fp_max = np.zeros(len(self.mc_values))
+        self.fp_of_e_interp = [0]*len(self.mc_values)
+        self.e_of_fp_interp = [0]*len(self.mc_values)
+
+        if (mode=="individual"): # Warning: high memory use
+            for mc_idx, mc_val in enumerate(self.mc_values):
+                if (mc_idx%10==0): 
+                    print("Solving ", mc_idx+1, "/", len(self.mc_values), " ...") 
+                evolution = ed.e_to_fp_interpolator(fp_star=10., e_star=self.estar[mc_idx])
+                self.fp_min[mc_idx] = evolution[0]
+                self.fp_max[mc_idx] = evolution[1]
+                self.fp_of_e_interp[mc_idx] = evolution[2]
+                self.e_of_fp_interp[mc_idx] = evolution[3]
+        elif (mode=="interpolate"): 
+            if (self.is_evolved==False): 
+                estar_max = np.max(self.estar)
+                estar_min = np.min(self.estar)
+                de = 0.01
+    
+                estar_table = np.geomspace((1.-de)*estar_min, (1.+de)*estar_max, 100)
+    
+                fp_min_table = np.zeros(len(estar_table))
+                fp_max_table = np.zeros(len(estar_table))
+                fp_of_e_interp_table = [0]*len(estar_table)
+                e_of_fp_interp_table = [0]*len(estar_table)
+            
+                def e_evaluator(e_idx, e_of_fp, fp):
+                    if (fp < fp_min_table[e_idx]): 
+                        return 1.
+                    elif (fp > fp_max_table[e_idx]): 
+                        return 0.
+                    else: 
+                         return e_of_fp(fp) 
+    
+                for e_idx, e_val in enumerate(estar_table):
+                    if (e_idx%10==0): 
+                        print("Building interpolation ", e_idx, "/", len(estar_table), "...")
+                    evolution = ed.e_to_fp_interpolator(fp_star=10., e_star=e_val)
+                    fp_min_table[e_idx] = evolution[0]
+                    fp_max_table[e_idx] = evolution[1]
+                    fp_of_e_interp_table[e_idx] = evolution[2](np.linspace(1.e-9, 1.-1e-9, 100))
+                    e_of_fp_interp_table[e_idx] = np.array([e_evaluator(
+                        e_idx,
+                        evolution[3],
+                        fp
+                    ) for fp in np.logspace(-6, 2, 801)])
+            
+                self.fp_min_of_estar_interp = scipy.interpolate.interp1d(estar_table, fp_min_table)
+                self.fp_max_of_estar_interp = scipy.interpolate.interp1d(estar_table, fp_max_table)
+                self.fp_of_e_for_estar_interp = scipy.interpolate.interp2d(
+                    np.linspace(1.e-9, 1.-1e-9, 100),
+                    estar_table,
+                    fp_of_e_interp_table
+                )
+                self.e_of_fp_for_estar_interp = scipy.interpolate.interp2d(
+                    np.logspace(-6, 2, 801),
+                    estar_table, 
+                    e_of_fp_interp_table
+                ) 
+
+                self.evolved=True
+
+            for mc_idx, mc_val in enumerate(self.mc_values):
+                if (mc_idx%10==0):
+                    print("Solving ", mc_idx, "/", len(self.mc_values)-1, " ...")
+                self.fp_min[mc_idx] = self.fp_min_of_estar_interp(self.estar[mc_idx])
+                self.fp_max[mc_idx] = self.fp_max_of_estar_interp(self.estar[mc_idx])
+                self.fp_of_e_interp[mc_idx] = lambda e, mc_idx=mc_idx: self.fp_of_e_for_estar_interp(
+                    e, self.estar[mc_idx])
+                self.e_of_fp_interp[mc_idx] = lambda fp, mc_idx=mc_idx: self.e_of_fp_for_estar_interp(
+                    fp, self.estar[mc_idx])
+
+
+    def solve_snr(
+        self,
+        t=10.
+    ): 
+        self.r_of_SNR8 = [0]*(len(self.mc_values))
+
+        for mc_idx, mc_val in enumerate(self.mc_values): 
+            self.r_of_SNR8[mc_idx] = lambda fp, mc_idx=mc_idx: ed.roffmSNR8(
+                self.chi_values[mc_idx], 
+                fp, 
+                self.e_of_fp_interp[mc_idx](fp),
+                self.m1_values[mc_idx]*ed.msun_in_kg, 
+                self.m2_values[mc_idx]*ed.msun_in_kg, 
+                t
+            )
+
+    def solve_theta(self, e_cut):
+        self.e_cut = e_cut
+        self.theta_cut = [0]*(len(self.mc_values))
+        self.fp_cut = [0]*(len(self.mc_values))
+
+        for mc_idx, mc_val in enumerate(self.mc_values): 
+            self.fp_cut[mc_idx] = max(self.fp_of_e_interp[mc_idx](e_cut), self.fp_min[mc_idx])
+            self.theta_cut[mc_idx] = lambda fp, mc_idx=mc_idx: np.nan_to_num(
+                np.heaviside(np.nan_to_num(self.r_of_SNR8[mc_idx](fp))/((10.**6)*ed.pc_in_meters)
+                     - self.chi_values[mc_idx], 0.)
+                * np.heaviside(fp - self.fp_cut[mc_idx], 0.)                
+            )      
+
+    def count_N(self, log10fmin, log10fmax): 
+        self.N_counts = np.zeros(len(self.mc_values))
+
+        for mc_idx, mc_val in enumerate(self.mc_values): 
+            integrand = lambda log10fp, mc_idx=mc_idx: (
+                ed.dtdfp(self.mc_values[mc_idx], np.power(10., log10fp), 
+                    self.e_of_fp_interp[mc_idx](np.power(10., log10fp))) 
+                * self.theta_cut[mc_idx](np.power(10., log10fp))
+            )
+            self.N_counts = scipy.integrate.quad(integrand, log10fmin, log10fmax)
 
     def save(
         self, 
@@ -128,11 +275,17 @@ class World:
             + 'Mass args: ' 
             + str(self.mass_args)
             + '\n'
-            + 'Data columns: chi, m1, m2, mc'
+            + 'Data columns: chi, m1, m2, mc, estar'
         )
         
         data = np.stack(
-            (self.chi_values, self.m1_values, self.m2_values, self.mc_values),
+            (
+                self.chi_values, 
+                self.m1_values, 
+                self.m2_values, 
+                self.mc_values,
+                self.estar
+            ),
             axis=1
         )
 
@@ -174,6 +327,7 @@ def load_world(filepath):
         w.m1_values = data[:, 1]
         w.m2_values = data[:, 2]
         w.mc_values = data[:, 3]
+        w.estar = data[:, 4]
         w.world_mass = np.sum(w.m1_values + w.m2_values)
 
         print("World loaded: ")

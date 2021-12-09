@@ -20,4 +20,4 @@ Omega_lambda = omega_lambda/(h**2.)
 
 gamma = 1.1954 # 1907.02283
 
-dtevolve = ((10.**-2.4)*year_in_seconds)
+dtevolve = ((10.**-1)*year_in_seconds)
