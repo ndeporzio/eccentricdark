@@ -29,10 +29,9 @@ def H_script( # 1907.02283, eq 4
 
 def e_to_fp_interpolator(
     fp_star, 
-    e_star
-    ): 
-
+    e_star,
     e_offset = 1.0e-9
+    ): 
 
     bin_count = int(1e6)
 

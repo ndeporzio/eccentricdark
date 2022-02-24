@@ -217,20 +217,20 @@ class World:
                     e_of_fp_interp_table
                 ) 
 
-                self.evolved=True
+                self.is_evolved=True
 
             print("Evaluating e[fp] for given e*, fp*...")
             for mc_idx, mc_val in enumerate(self.mc_values):
                 if (mc_idx%10==0):
                     print("Solving ", mc_idx, "/", len(self.mc_values)-1, " ...", end="")
                     print("\r", end="")
-                print("Finished\n") 
                 self.fp_min[mc_idx] = self.fp_min_of_estar_interp(self.estar[mc_idx])
                 self.fp_max[mc_idx] = self.fp_max_of_estar_interp(self.estar[mc_idx])
                 self.fp_of_e_interp[mc_idx] = lambda e, mc_idx=mc_idx: self.fp_of_e_for_estar_interp(
                     e, self.estar[mc_idx])
                 self.e_of_fp_interp[mc_idx] = lambda fp, mc_idx=mc_idx: self.e_of_fp_for_estar_interp(
                     fp, self.estar[mc_idx])
+            print("Finished...................................\n") 
 
 
     def solve_snr(
