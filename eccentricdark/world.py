@@ -87,6 +87,10 @@ class World:
             M = sample_m1+sample_m2
             mc = ed.m_chirp(sample_m1, sample_m2) 
 
+            #sample_chi = np.power(ed.chi_distribution_sampler(
+            #    chi_distribution, 
+            #    chi_args
+            #), 1./3.)
             sample_chi = ed.chi_distribution_sampler(
                 chi_distribution, 
                 chi_args
@@ -112,6 +116,16 @@ class World:
         
         max_len=len(self.chi_values)
         print("World contains: ", max_len, " binaries...")
+
+        cosmo = True
+        if cosmo==True: 
+            self.redshifts = np.zeros(len(self.chi_values))
+            cosmo = ed.Cosmology()
+            for idx, val in enumerate(self.m1_values):
+                chi = self.chi_values[idx]
+                self.redshifts[idx] = cosmo.redshift_solver(chi, 0.1)
+                self.chi_values[idx] = chi/(1.+self.redshifts[idx])
+                self.mc_values[idx] = self.redshifts[idx]*self.mc_values[idx]
         
     def initialize_eccentricities(
         self,
@@ -329,6 +343,14 @@ def load_world(filepath):
         w.mc_values = data[:, 3]
         w.estar = data[:, 4]
         w.world_mass = np.sum(w.m1_values + w.m2_values)
+
+        w.redshifts = np.zeros(len(w.estar))
+        cosmo = ed.Cosmology()
+        for idx, val in enumerate(w.m1_values): 
+            chi = w.chi_values[idx]
+            w.redshifts[idx] = cosmo.redshift_solver(chi, 0.1) 
+            w.chi_values[idx] = chi/(1.+w.redshifts[idx])
+            w.mc_values[idx] = w.redshifts[idx]*w.mc_values[idx] 
 
         print("World loaded: ")
         print("\t Max comoving distance [Mpc]: ", chi_max)
