@@ -17,6 +17,7 @@ class World:
 
         self.world_mass=None
         self.is_evolved=False
+        self.use_cosmology=False
 
         self.chi_max = chi_max
         self.annual_merger_rate = annual_merger_rate
@@ -50,13 +51,17 @@ class World:
         mass_distribution,
         mass_args=None, 
         chi_distribution=None, 
-        chi_args=None
+        chi_args=None,
+        cosmo=False
     ):   
 
         self.mass_distribution = mass_distribution
         self.mass_args = mass_args
         self.chi_distribution = chi_distribution
         self.chi_args = chi_args
+
+        if cosmo==True: 
+            self.use_cosmology=True
 
         counter = 0
         world_full = False
@@ -73,8 +78,9 @@ class World:
                 print(
                     'Sample evaluation is '
                     + str(np.floor(100.*counter/self.binary_limit))
-                    + '% complete...'
+                    + '% complete...', end=""
                 )
+                print("\r", end="")
             
             sample = ed.mass_distribution_sampler(
                 form=self.mass_distribution, 
@@ -85,12 +91,8 @@ class World:
             sample_m2 = sample[1]
             
             M = sample_m1+sample_m2
-            mc = ed.m_chirp(sample_m1, sample_m2) 
+            mc = ed.m_chirp(sample_m1, sample_m2)
 
-            #sample_chi = np.power(ed.chi_distribution_sampler(
-            #    chi_distribution, 
-            #    chi_args
-            #), 1./3.)
             sample_chi = ed.chi_distribution_sampler(
                 chi_distribution, 
                 chi_args
@@ -98,6 +100,7 @@ class World:
 
             if (counter>=np.int(np.floor(self.binary_limit))):
                 world_full=True
+                print("Sample evaluation is 100% complete.")
             else: 
                 world_population_m1[counter] = sample_m1
                 world_population_m2[counter] = sample_m2
@@ -117,15 +120,12 @@ class World:
         max_len=len(self.chi_values)
         print("World contains: ", max_len, " binaries...")
 
-        cosmo = True
-        if cosmo==True: 
+        if self.use_cosmology==True: 
             self.redshifts = np.zeros(len(self.chi_values))
             cosmo = ed.Cosmology()
             for idx, val in enumerate(self.m1_values):
-                chi = self.chi_values[idx]
-                self.redshifts[idx] = cosmo.redshift_solver(chi, 0.1)
-                self.chi_values[idx] = chi/(1.+self.redshifts[idx])
-                self.mc_values[idx] = self.redshifts[idx]*self.mc_values[idx]
+                self.redshifts[idx] = cosmo.redshift_solver(self.chi_values[idx], 0.1)
+                self.mc_values[idx] = (1.+self.redshifts[idx])*self.mc_values[idx]
         
     def initialize_eccentricities(
         self,
@@ -146,7 +146,8 @@ class World:
 
     def solve_evolution(
         self,
-        mode
+        mode, 
+        fpstar=10.
     ): 
         if (self.world_mass==None):
             print("Need to 'populate_world' masses first...")
@@ -158,10 +159,12 @@ class World:
         self.e_of_fp_interp = [0]*len(self.mc_values)
 
         if (mode=="individual"): # Warning: high memory use
+            print("Evaluating e[fp] for given e*, fp*...")
             for mc_idx, mc_val in enumerate(self.mc_values):
                 if (mc_idx%10==0): 
-                    print("Solving ", mc_idx+1, "/", len(self.mc_values), " ...") 
-                evolution = ed.e_to_fp_interpolator(fp_star=10., e_star=self.estar[mc_idx])
+                    print("Solving ", mc_idx+1, "/", len(self.mc_values), " ...", end="")
+                    print("\r", end="") 
+                evolution = ed.e_to_fp_interpolator(fp_star=fpstar, e_star=self.estar[mc_idx])
                 self.fp_min[mc_idx] = evolution[0]
                 self.fp_max[mc_idx] = evolution[1]
                 self.fp_of_e_interp[mc_idx] = evolution[2]
@@ -189,7 +192,8 @@ class World:
     
                 for e_idx, e_val in enumerate(estar_table):
                     if (e_idx%10==0): 
-                        print("Building interpolation ", e_idx, "/", len(estar_table), "...")
+                        print("Building interpolation ", e_idx, "/", len(estar_table), "...", end="")
+                        print("\r", end="")
                     evolution = ed.e_to_fp_interpolator(fp_star=10., e_star=e_val)
                     fp_min_table[e_idx] = evolution[0]
                     fp_max_table[e_idx] = evolution[1]
@@ -215,9 +219,12 @@ class World:
 
                 self.evolved=True
 
+            print("Evaluating e[fp] for given e*, fp*...")
             for mc_idx, mc_val in enumerate(self.mc_values):
                 if (mc_idx%10==0):
-                    print("Solving ", mc_idx, "/", len(self.mc_values)-1, " ...")
+                    print("Solving ", mc_idx, "/", len(self.mc_values)-1, " ...", end="")
+                    print("\r", end="")
+                print("Finished\n") 
                 self.fp_min[mc_idx] = self.fp_min_of_estar_interp(self.estar[mc_idx])
                 self.fp_max[mc_idx] = self.fp_max_of_estar_interp(self.estar[mc_idx])
                 self.fp_of_e_interp[mc_idx] = lambda e, mc_idx=mc_idx: self.fp_of_e_for_estar_interp(
