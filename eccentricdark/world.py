@@ -139,10 +139,14 @@ class World:
 
         self.estar_distribution = estar_distribution
         self.estar_args = args
-        self.estar = np.zeros(len(self.mc_values))
+        self.invcdf = None
 
-        for mc_idx, mc_val in enumerate(self.mc_values): 
-            self.estar[mc_idx] = ed.estar_sampler(estar_distribution, args)
+        print("Building eccentricity interpolator...")
+        self.invcdf = ed.estar_sampler(estar_distribution, args) 
+        self.estar_sampler = (lambda : self.invcdf(np.random.random(1))) 
+
+        print("Generating eccentricity samples...") 
+        self.estar = self.invcdf(np.random.random(len(self.mc_values)))
 
     def solve_evolution(
         self,
@@ -311,6 +315,22 @@ class World:
         )
 
         np.savetxt(filepath, data, header=header_text, comments='#')
+
+    def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):
+        totalcount = 0.
+        for mc_idx, mc_val in enumerate(self.mc_values[0:Max_N_binaries]):
+            integrand = lambda log10fp: (
+                1.
+                * np.power(np.power(10., log10fp), -11./3.)
+                / np.power(np.power(10., -1.5), -11./3.)
+                * ed.F_script(self.e_of_fp_interp[mc_idx](np.power(10., log10fp)))
+                /4.383
+            )
+            integral = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
+            counts = integral * self.theta_cut[mc_idx](np.power(10., log10fmin))
+            totalcount += counts
+            #print(integral, ", ", counts, ", ", totalcount)
+        return totalcount
 
 def load_world(filepath): 
     header_text = []

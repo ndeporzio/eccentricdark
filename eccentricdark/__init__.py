@@ -22,7 +22,8 @@ from .constants import (
     Omega_k, 
     Omega_lambda,
     gamma, 
-    dtevolve
+    dtevolve,
+    invcdf_density_factor
 )
 from .world import (
     World, 
@@ -81,7 +82,10 @@ from .snr import (
 )
 #from .plotting import ()
 
-#from .methods import()
+from .methods import(
+    generate_invcdf,
+    multigauss
+)
 
 print(
     "You have loaded the eccentricdark - a Python package for modeling"
@@ -89,3 +93,6 @@ print(
     + " channels through eccentricity observations... \n"
     + "See 'Tutorial.ipynb' for use instructions..." 
 )
+
+
+

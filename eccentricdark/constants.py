@@ -21,3 +21,4 @@ Omega_lambda = omega_lambda/(h**2.)
 gamma = 1.1954 # 1907.02283
 
 dtevolve = ((10.**-1)*year_in_seconds)
+invcdf_density_factor = 100
