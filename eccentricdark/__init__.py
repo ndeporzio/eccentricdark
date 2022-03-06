@@ -1,6 +1,9 @@
 # The lines in this file are executed upon importing the 
 # 'eccentricdark' package in a Python environment.
 
+from .analysis import (
+    Analysis
+)
 from .chidistributions import (
     chi_distribution_sampler
 )
@@ -25,14 +28,6 @@ from .constants import (
     dtevolve,
     invcdf_density_factor
 )
-from .world import (
-    World, 
-    load_world
-)
-from .massdistributions import (
-    mass_distribution_sampler,
-    mc_pdf
-)
 from .cosmology import (
     Cosmology,
     load_cosmology,
@@ -45,7 +40,8 @@ from .eccentricitydistributions import (
     estar_sampler
 )
 from .equations import (
-    m_chirp, 
+    m_chirp,
+    m_reduced, 
     G_script, 
     H_script, 
     e_to_fp_interpolator,
@@ -67,11 +63,16 @@ from .equations import (
     SNR_LISA,
     roffmSNR8
 )
-from .analysis import (
-    Analysis
-)
-
 #from ./lookup/
+from .massdistributions import (
+    mass_distribution_sampler,
+    mc_pdf
+)
+from .methods import(
+    generate_invcdf,
+    multigauss
+)
+#from .plotting import ()
 from .snr import (
     SnLISA,
     SnAcc, 
@@ -80,11 +81,9 @@ from .snr import (
     SnGal,
     SnLISAdefault
 )
-#from .plotting import ()
-
-from .methods import(
-    generate_invcdf,
-    multigauss
+from .world import (
+    World, 
+    load_world
 )
 
 print(

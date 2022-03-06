@@ -1,4 +1,3 @@
-
 import eccentricdark as ed
 import numpy as np
 import scipy
@@ -9,6 +8,12 @@ def m_chirp(m1, m2):
         return 0.
     else: 
         return np.power(m1*m2, 3./5.)/np.power(m1+m2, 1./5.) # Units: kg^1
+
+def m_reduced(m1, m2): 
+    if ((m1==0.) or (m2==0.)): 
+        return 0.
+    else: 
+        return ((m1*m2)/(m1+m2))
 
 def G_script( # 1907.02283, eq 2
     e #Unitless
@@ -155,7 +160,7 @@ def fpeak(m1, m2, a, e): # equation 3
 
 def dadt(m1, m2, a, e): # equation 1a 
     m = m1 + m2
-    mu = (m1*m2)/m 
+    mu = ed.m_reduced(m1, m2) 
     
     val = (
         -1.0
@@ -172,7 +177,7 @@ def dadt(m1, m2, a, e): # equation 1a
 
 def dedt(m1, m2, a, e): # equation 1b
     m = m1 + m2
-    mu = (m1*m2)/m
+    mu = ed.m_reduced(m1, m2)
     
     val = (
         -1.0
@@ -189,8 +194,8 @@ def dedt(m1, m2, a, e): # equation 1b
     return val
 
 def tmerge(fp, e, m1, m2):
-    m = m1 + m2 
-    mu = (m1*m2)/m
+    m = m1 + m2
+    mu = ed.m_reduced(m1, m2) 
 
     val = (
         (5./256.)
@@ -305,10 +310,16 @@ def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds)): #Fast
 
     return val 
 
-def snrintsol(fp0, e0, m1, m2, ttoday): #Slow
+def snrintsol(
+    fp0, # signal frequency in detector
+    e0, # signal eccentricity in detector
+    m1, # binary mass 1 in Msun
+    m2, # binary mass 2 in Msun 
+    ttoday # observation time in seconds 
+): #Slow
      
     m = m1 + m2
-    mu = m1*m2/m
+    mu = ed.m_reduced(m1, m2)
     
     BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
     t = BBHsol[0]
@@ -339,7 +350,6 @@ def snrintsol(fp0, e0, m1, m2, ttoday): #Slow
         if (idx!=0) and (idx!=(len(t)-1)):
             t[idx]=t[idx-1]+dt
 
-    for idx in range(len(t)):
         solp[idx] = ed.integrand(fp0, e0, m1, m2)(t[idx])
 
         if (idx!=(len(t)-1)): #do for all but last entry 
@@ -348,10 +358,17 @@ def snrintsol(fp0, e0, m1, m2, ttoday): #Slow
     return sol[-1] 
     
 
-def SNR_LISA(r, fp0, e0, m1, m2, ttoday): 
+def SNR_LISA(
+    r, # distance in pc 
+    fp0, # frequency in detector 
+    e0, # eccentricity in detector
+    m1, # binary mass 1 in Msun
+    m2, # binary mass 2 in Msun
+    ttoday # observation time in seconds
+): 
     
     m = m1 + m2
-    mu = (m1*m2)/m
+    mu = ed.m_reduced(m1, m2) 
 
     val = np.sqrt(
         (2.*64./5.) 
@@ -365,13 +382,17 @@ def SNR_LISA(r, fp0, e0, m1, m2, ttoday):
 
 
 def roffmSNR8(
-    r, # Mpc 
-    fp,
-    e,
-    m1,  # Msun
-    m2, 
+    r, # distance in Mpc 
+    fp, # peak frequency of signal 
+    e,  # Eccentricity of signal 
+    m1,  # Binary 1 mass in Msun
+    m2, # Binary 2 mass in Msun
     t #years
     ): 
+
+    # Return the comoving distance at which a binary system signal
+    # with specified masses, signal eccentricity, signal peak 
+    # frequency and observation time can be measured with SNR>8 
 
     return (
         (r/8.)
