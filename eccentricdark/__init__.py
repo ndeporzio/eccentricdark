@@ -26,7 +26,10 @@ from .constants import (
     Omega_lambda,
     gamma, 
     dtevolve,
-    invcdf_density_factor
+    invcdf_density_factor,
+    e_interp_offset_default, 
+    e_bin_count_default,
+    lookup_bbh_evolution
 )
 from .cosmology import (
     Cosmology,
@@ -37,7 +40,12 @@ from .cosmology import (
     redshift_solver
 )
 from .eccentricitydistributions import (
-    estar_sampler
+    estar_sampler, 
+    fieldData,
+    ejectedData,
+    inclusterData,
+    galcenterData,
+    fieldtripleData
 )
 from .equations import (
     m_chirp,
