@@ -5,29 +5,38 @@ import scipy.integrate
 import scipy.interpolate 
 
 
-def generate_invcdf(pdf, xmin, xmax): 
-    #normalize pdf
-    normalization = scipy.integrate.quad(pdf, xmin, xmax)[0] 
-    normed_pdf = lambda x: pdf(x)/normalization
+def generate_invcdf(pdf, xmin, xmax, xscale): 
 
     #calculate cdf
-    if ((np.log10(xmax)-np.log10(xmin))>3): 
-        xscale='log'
-        size_xbasis = np.int(np.floor((np.log10(xmax)-np.log10(xmin))*ed.invcdf_density_factor))
-        xeval = np.logspace(np.log10(xmin), np.log10(xmax), size_xbasis)
-    else: 
-        xscale='linear'
+    if xscale=='log':
+        xvals = np.linspace(np.log10(xmin), np.log10(xmax), ed.invcdf_density_factor)
+        xmidpoints = (xvals[1:] + xvals[:-1]) / 2.
+        dxvals = np.diff(xvals)
+
+        normalization = np.sum(pdf(np.power(10., xmidpoints))*dxvals)
+        normed_pdf = lambda x: pdf(x)/normalization   
+
+        cdf_vals = np.zeros(len(xvals)+1)
+        cdf_vals[1:-1] = np.cumsum(normed_pdf(np.power(10., xmidpoints))*dxvals)
+        cdf_vals[-1] = 1.
+
+        fullxvals = np.append(np.append(xvals[0], xmidpoints), xvals[-1])
+
+        cdf_interp = scipy.interpolate.interp1d(fullxvals, cdf_vals)
+        log10invcdf_interp = scipy.interpolate.interp1d(cdf_vals, fullxvals)
+        invcdf_interp = lambda x: np.power(10., log10invcdf_interp(x))
+
+    elif xscale=='linear': 
+        normalization = scipy.integrate.quad(pdf, xmin, xmax)[0]
+        normed_pdf = lambda x: pdf(x)/normalization
         size_xbasis = np.int(np.floor((xmax-xmin)*ed.invcdf_density_factor))
         xeval = np.linspace(xmin, xmax, size_xbasis) 
 
-    cdf_func = np.vectorize(lambda y: scipy.integrate.quad(normed_pdf, xmin, y)[0])
-    cdf = cdf_func(xeval)
-    cdf_interp = scipy.interpolate.interp1d(xeval, cdf) 
-        #CAREFUL - might want to interpolate log of values for log spacing
+        cdf_func = np.vectorize(lambda x: scipy.integrate.quad(normed_pdf, xmin, x)[0])
+        cdf = cdf_func(xeval)
+        cdf_interp = scipy.interpolate.interp1d(xeval, cdf) 
 
-    #invert cdf 
-    invcdf_interp = scipy.interpolate.interp1d(cdf, xeval) 
-        #CAREFUL - might want to interpolate log of values for log spacing
+        invcdf_interp = scipy.interpolate.interp1d(cdf, xeval) 
 
     return invcdf_interp
 

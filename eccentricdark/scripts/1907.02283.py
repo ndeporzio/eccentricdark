@@ -9,10 +9,11 @@ import sys
 
 sns.set()
 
-fig1 = False
+fig1 = True
 fig2 = True
-fig3 = False
+fig3 = True
 fig4 = False
+extra1 = False 
 
 #Collect output directory 
 if(len(sys.argv)!=2): 
@@ -94,21 +95,54 @@ if fig2==True:
 
     plt.figure(figsize=(26.25, 7.5))
     plt.hist(bins[:-1], bins, weights=isolated_counts/max(isolated_counts), 
-        label=r'isolated', linewidth=2, histtype='step', color='grey')
+        label=r'isolated', linewidth=2, histtype='stepfilled', color='grey', alpha=0.5)
     plt.hist(bins[:-1], bins, weights=ejected_counts/max(ejected_counts), 
-        label=r'ejected', linewidth=2, histtype='step', color='red')
+        label=r'ejected', linewidth=2, histtype='stepfilled', color='red', alpha=0.5)
     plt.hist(bins[:-1], bins, weights=incluster_counts/max(incluster_counts), 
-        label=r'in-cluster', linewidth=2, histtype='step', color='purple')
+        label=r'in-cluster', linewidth=2, histtype='stepfilled', color='purple', alpha=0.5)
     plt.hist(bins[:-1], bins, weights=galcenter_counts/max(galcenter_counts), 
-        label=r'gal. center', linewidth=2, histtype='step', color='blue')
+        label=r'gal. center', linewidth=2, histtype='stepfilled', color='blue', alpha=0.5)
     plt.plot(np.power(10., ed.fieldData[:,0]), ed.fieldData[:,1]/max(ed.fieldData[:,1]), 
-        linewidth=2, color="grey")
+        linewidth=4, color="grey")
     plt.plot(np.power(10., ed.ejectedData[:,0]), ed.ejectedData[:,1]/max(ed.ejectedData[:,1]), 
-        linewidth=2, color="red")
+        linewidth=4, color="red")
     plt.plot(np.power(10., ed.inclusterData[:,0]), ed.inclusterData[:,1]/max(ed.inclusterData[:,1]), 
-        linewidth=2, color="purple")
+        linewidth=4, color="purple")
     plt.plot(np.power(10., ed.galcenterData[:,0]), ed.galcenterData[:,1]/max(ed.galcenterData[:,1]), 
-        linewidth=2, color="blue")
+        linewidth=4, color="blue")
+    plt.plot(np.logspace(-7, -4, 31), ed.multigauss(
+            y = np.logspace(-7, -4, 31),
+            u = -1.24404586e+01,
+            a = -4.34697804e-01,
+            b = -1.01499373e-01,
+            c = -1.35644612e-02,
+            k = 1.66563843e-06
+        ), color="grey", linestyle='dashed', linewidth=4)
+    plt.plot(np.logspace(-7, -3, 31), ed.multigauss(
+            y = np.logspace(-7, -3, 31),
+            u = -8.78221641e+00,
+            a = -2.09640376e-01,
+            b = -5.04274365e-02,
+            c = -5.23793259e-03,
+            k = 9.08204226e-06 
+        ), color="red", linestyle='dashed', linewidth=4)
+    plt.plot(np.logspace(-7, -2, 31), ed.multigauss(
+            y = np.logspace(-7, -2, 31),
+            u = -7.19800218e+00,
+            a = -3.87340001e-01,
+            b = -1.24883309e-01,
+            c = -1.69861077e-02,
+            k = 1.61038230e-04
+        ), color="purple", linestyle='dashed', linewidth=4)
+    plt.plot(np.logspace(-7, -2, 31), ed.multigauss(
+            y = np.logspace(-7, -2, 31),
+            u = -4.74123592e+00,
+            a = -5.54338733e-01,
+            b = -1.76646912e-01,
+            c = -1.76665852e-02,
+            k = 1.01316664e-03
+        ), color="blue", linestyle='dashed', linewidth=4)
+
     plt.legend(fontsize=20)
     plt.ylabel(r"$e_0$-distribution", fontsize=20)
     plt.xlabel(r"$e_0$ at $f_{p0}=10$ Hz", fontsize=20)

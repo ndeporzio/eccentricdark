@@ -21,54 +21,96 @@ def estar_sampler(
             lambda x: np.power(10., scipy.stats.norm(loc=args[0], scale=args[1]).ppf(x)))
 
     if estar_distribution=="isolated": 
+        fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss, 
+            np.power(10., ed.fieldData[:,0]),
+            ed.fieldData[:,1]/max(ed.fieldData[:,1]),
+            [
+                -12.308577637842925,
+                -0.3000192097507729,
+                -0.02842041062114348,
+                -0.0024862991498544496,
+                0.23232375892104137
+            ])
         pdf_unnormed = lambda estar : ed.multigauss(
-            y = estar, 
-            u = -12.308577637842925, 
-            a = -0.3000192097507729,
-            b = -0.02842041062114348, 
-            c = -0.0024862991498544496, 
-            k = 0.23232375892104137
-        ) 
+            y = estar,
+            u = fit1[0],
+            a = fit1[1],
+            b = fit1[2],
+            c = fit1[3],
+            k = fit1[4]
+        )
 
-        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-2))
+        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-2, 'log'))
 
     if estar_distribution=="ejected": 
+        fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss, 
+            np.power(10., ed.ejectedData[:,0]), 
+            ed.ejectedData[:,1]/max(ed.ejectedData[:,1]),
+            [
+                -8.903606734106413, 
+                -0.21505957280762572, 
+                -0.05215442618559087, 
+                -0.005523661062693592, 
+                0.2504431992363881
+            ])
         pdf_unnormed = lambda estar : ed.multigauss(
             y = estar, 
-            u = -8.903606734106413, 
-            a = -0.21505957280762572,
-            b = -0.05215442618559087, 
-            c = -0.005523661062693592, 
-            k = 0.2504431992363881
+            u = fit1[0], 
+            a = fit1[1],
+            b = fit1[2], 
+            c = fit1[3], 
+            k = fit1[4]
         ) 
 
-        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-2))
+        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-2, 'log'))
 
     if estar_distribution=="incluster": 
+        fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss, 
+            np.power(10., ed.inclusterData[:,0]),
+            ed.inclusterData[:,1]/max(ed.inclusterData[:,1]),
+            [
+                -7.1814548324724425,
+                -0.41160569016079956,
+                -0.13633206068723644,
+                -0.01848512571848316,
+                0.34149918878761343
+            ])
         pdf_unnormed = lambda estar : ed.multigauss(
-            y = estar, 
-            u = -7.1814548324724425, 
-            a = -0.41160569016079956,
-            b = -0.13633206068723644, 
-            c = -0.01848512571848316, 
-            k = 0.34149918878761343
-        ) 
+            y = estar,
+            u = fit1[0],
+            a = fit1[1],
+            b = fit1[2],
+            c = fit1[3],
+            k = fit1[4]
+        )
 
-
-        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-1))
+        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-1, 'log'))
 
     if estar_distribution=="galcenter": 
+        fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss, 
+            np.power(10., ed.galcenterData[:,0]),
+            ed.galcenterData[:,1]/max(ed.galcenterData[:,1]),
+            [
+                -8.670877869456227,
+                -1.4033086813787914,
+                -1.0852555343749364,
+                -0.3468739524658422,
+                0.06114451273864072 
+            ])
         pdf_unnormed = lambda estar : ed.multigauss(
-            y = estar, 
-            u = -8.670877869456227, 
-            a = -1.4033086813787914,
-            b = -1.0852555343749364, 
-            c = -0.3468739524658422, 
-            k = 0.06114451273864072
-        ) 
+            y = estar,
+            u = fit1[0],
+            a = fit1[1],
+            b = fit1[2],
+            c = fit1[3],
+            k = fit1[4]
+        )
 
-
-        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-1))
+        return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-1, 'log'))
 
 fieldData = np.array([[-7.56450, 0.02073], [-7.50032, 0.04945], [-7.45449, 
     0.074], [-7.40865, 0.09855], [-7.36281, 0.12607], [-7.32156, 
