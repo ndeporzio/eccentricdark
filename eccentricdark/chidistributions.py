@@ -13,9 +13,9 @@ def chi_distribution_sampler(
         chi = args[0] 
         return chi 
     elif (form=="uniform"):
-        chi_min = args[0]
-        chi_max = args[1] 
-        return np.random.uniform(chi_min, chi_max)
+        chi_min = 0.
+        chi_max = args[0] 
+        return chi_max*np.power(np.random.random(), 1./3.)
 
     
 
