@@ -21,4 +21,17 @@ Omega_lambda = omega_lambda/(h**2.)
 gamma = 1.1954 # 1907.02283
 
 dtevolve = ((10.**-1)*year_in_seconds)
-invcdf_density_factor = 100
+invcdf_density_factor = 1000
+
+e_interp_offset_default = 1.0e-9
+# Can't interpolate e[fp] exactly at e=0 and e=1
+# so we have to offset from these values by some
+# amount in order to build an interpolation table. 
+# This parameter sets what that offset should be. 
+
+e_bin_count_default = int(1e6)
+# When building e[fp] interpolation tables, this
+# is how many values of e to calculate between 
+# 0 and 1 to build interpolation table
+
+lookup_bbh_evolution = False

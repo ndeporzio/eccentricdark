@@ -35,10 +35,10 @@ def H_script( # 1907.02283, eq 4
 def e_to_fp_interpolator(
     fp_star, 
     e_star,
-    e_offset = 1.0e-9
+    e_offset = ed.e_interp_offset_default
     ): 
 
-    bin_count = int(1e6)
+    bin_count = ed.e_bin_count_default
 
     e_interp_table = np.linspace(0.+e_offset, 1.-e_offset, bin_count)
     H_interp_table = H_script(e_interp_table)
@@ -58,8 +58,8 @@ def e_solver(
     e_star,
     ): # 1907.02283, eq 4
 
-    e_offset = 1.0e-9
-    e_bin_count = int(1e6)
+    e_offset = ed.e_interp_offset_default
+    e_bin_count = ed.e_bin_count_default
 
     e_interp_table = np.linspace(0.+e_offset, 1.-e_offset, e_bin_count)
     H_interp_table = H_script(e_interp_table)
@@ -261,18 +261,19 @@ def BBHevolve(                          #Fast
 
     return [np.array(t).flatten(), np.array(a).flatten(), np.array(e).flatten(), merger]    
 
-def fpr(fp0, e0, m1, m2): 
+def fpr(fp0, e0, m1, m2, ainterp=None, einterp=None): 
 
     m = m1 + m2
 
-    BBHsol = ed.BBHevolve(fp0, e0, m1, m2)
-    t = BBHsol[0]
-    a = BBHsol[1]
-    e = BBHsol[2]
-    merger = BBHsol[3]
-
-    ainterp = scipy.interpolate.interp1d(t, a)
-    einterp = scipy.interpolate.interp1d(t, e)
+    if ((ainterp==None) or (einterp==None)): 
+        BBHsol = ed.BBHevolve(fp0, e0, m1, m2)
+        t = BBHsol[0]
+        a = BBHsol[1]
+        e = BBHsol[2]
+        merger = BBHsol[3]
+    
+        ainterp = scipy.interpolate.interp1d(t, a)
+        einterp = scipy.interpolate.interp1d(t, e)
 
     val = (
         lambda t : (
@@ -285,20 +286,19 @@ def fpr(fp0, e0, m1, m2):
     
     return val 
 
-def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds)): #Fast 
+def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einterp=None): #Fast 
 
-    m = m1 + m2
+    if ((ainterp==None) or (einterp==None)):
+        BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tf)
+        t = BBHsol[0]
+        a = BBHsol[1]
+        e = BBHsol[2]
+        merger = BBHsol[3]
+    
+        ainterp = scipy.interpolate.interp1d(t, a)
+        einterp = scipy.interpolate.interp1d(t, e)
 
-    BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tf)
-    t = BBHsol[0]
-    a = BBHsol[1]
-    e = BBHsol[2]
-    merger = BBHsol[3]
-
-    ainterp = scipy.interpolate.interp1d(t, a)
-    einterp = scipy.interpolate.interp1d(t, e)
-
-    fpr = ed.fpr(fp0, e0, m1, m2)
+    fpr = ed.fpr(fp0, e0, m1, m2, ainterp, einterp)
 
     val = (
         lambda t : (
@@ -318,14 +318,14 @@ def snrintsol(
     ttoday # observation time in seconds 
 ): #Slow
      
-    m = m1 + m2
-    mu = ed.m_reduced(m1, m2)
-    
     BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
     t = BBHsol[0]
     a = BBHsol[1]
     e = BBHsol[2]
     merger = BBHsol[3]
+
+    ainterp = scipy.interpolate.interp1d(t, a)
+    einterp = scipy.interpolate.interp1d(t, e)
 
     if (merger==False): 
         tf = ttoday 
@@ -350,7 +350,7 @@ def snrintsol(
         if (idx!=0) and (idx!=(len(t)-1)):
             t[idx]=t[idx-1]+dt
 
-        solp[idx] = ed.integrand(fp0, e0, m1, m2)(t[idx])
+        solp[idx] = ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp)(t[idx])
 
         if (idx!=(len(t)-1)): #do for all but last entry 
             sol[idx+1] = sol[idx] + solp[idx]*dt
