@@ -239,13 +239,18 @@ class World:
 
     def solve_snr(
         self,
-        t=10.
+        t=10., 
+        chi_fixed=None
     ): 
         self.r_of_SNR8 = [0]*(len(self.mc_values))
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
+            if chi_fixed==None: 
+                chi = self.chi_values[mc_idx]
+            else: 
+                chi = np.float(chi_fixed)
             self.r_of_SNR8[mc_idx] = lambda fp, mc_idx=mc_idx: ed.roffmSNR8(
-                self.chi_values[mc_idx], 
+                chi, 
                 fp, 
                 self.e_of_fp_interp[mc_idx](fp),
                 self.m1_values[mc_idx]*ed.msun_in_kg, 
