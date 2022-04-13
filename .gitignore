@@ -1,3 +1,5 @@
 # Ignore the following files from git version control history.
 
 *__pycache__
+*.egg-info
+build/
