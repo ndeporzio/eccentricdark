@@ -9,11 +9,12 @@ import sys
 
 sns.set()
 
-fig1 = True
-fig2 = True
-fig3 = True
-fig4 = False
-extra1 = False 
+fig1 = False 
+fig2 = False 
+fig3 = False 
+fig4 = True
+extra1 = False
+extra2 = False 
 
 #Collect output directory 
 if(len(sys.argv)!=2): 
@@ -23,56 +24,35 @@ else:
     print("\nSaving results to: ", savepath, "\n")
 
 #Check LISA SNR - Figure 1 
-if fig1==True: 
-    x = np.logspace(-5, 0, 501)
-    y = np.array([np.sqrt(ed.SnLISAdefault(xval)) for xval in x])
-    plt.figure(figsize=(15, 7.5))
-    plt.plot(x, y)
-    plt.grid(True, which='both', axis='both')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel(r"$f_p$ [Hz]", fontsize=20)
-    plt.ylabel(r"$(Noise)^{1/2}$", fontsize=20)
-    plt.xticks(fontsize=18)
-    plt.yticks(fontsize=18)
-    plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
-    plt.savefig(os.path.join(savepath, 'LISA_N2A5_1.png'))
+if fig1==True:
+    fp_table = np.logspace(-4, 2, 61)
+    estar_table = np.array([1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6])
     
-    x = np.logspace(-5, 0, 501)
-    y = np.array([np.power(xval, 0.5)*np.sqrt(ed.SnLISAdefault(xval)) for xval in x])
-    plt.figure(figsize=(15, 7.5))
-    plt.plot(x, y)
-    plt.grid(True, which='both', axis='both')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel(r"$f_p$ [Hz]", fontsize=20)
-    plt.ylabel(r"$(f_p \times Noise)^{1/2}$", fontsize=20)
-    plt.xticks(fontsize=18)
-    plt.yticks(fontsize=18)
-    plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
-    plt.savefig(os.path.join(savepath, 'LISA_N2A5_2.png'))
-    
-    fp = np.logspace(-4, 1, 51)
-    m = np.arange(10.*ed.msun_in_kg, 100.*ed.msun_in_kg, 10.*ed.msun_in_kg)
-    y = np.array([[
-            ed.roffmSNR8(100., f, 0., mval, mval/4., 10.)
-            for f in fp]
-            for mval in m]
+    e_of_fp = np.array([[
+        ed.e_solver(
+            f_p=fpval,
+            fp_star=10., #Units: Hz 
+            e_star=estarval
         )
-    y2 = np.nan_to_num(y)
-    roffmSNR8intpl = scipy.interpolate.interp2d(fp, m, y2, kind='linear')
-    sns.set_palette("magma", len(m))
-    fp = np.logspace(-4, 1, 501)
+        for fpidx, fpval in enumerate(fp_table)]
+        for estaridx, estarval in enumerate(estar_table)])
+    
     plt.figure(figsize=(15, 7.5))
-    for mass in m: 
-        plt.plot(fp, roffmSNR8intpl(fp, mass)/((10.**6)*ed.pc_in_meters), label="M = "+f'{mass/ed.msun_in_kg:.2e}'+r' $M_{sun}$')
+    plt.title("Fig. 1 in 1907.02283", fontsize=20)
+    plt.xlabel(r"$f_p$/Hz", fontsize=20)
+    plt.ylabel(r"$e$", fontsize=20)
+    for estaridx, estarval in enumerate(estar_table): 
+        plt.plot(fp_table, e_of_fp[estaridx, :], label=r"$e_*=$"+f'{estarval:.1e}')
+    plt.plot([1.0e-4, 1.0e2], [1., 1.], color='black', label=r"e=1.0")
+    plt.plot([1.0e-4, 1.0e2], [2.0e-3, 2.0e-3], color='black', alpha=0.2)
+    plt.legend(fontsize=20)
+    plt.xlim((1.0e-4, 1.0e2))
+    plt.ylim((1.0e-3, 10**0.1))
+    plt.yscale('log')
     plt.xscale('log')
-    plt.grid(True, which='both', axis='both')
-    plt.xlabel(r"$f_p$ [Hz]", fontsize=20)
-    plt.ylabel(r"r [Mpc] s.t. SNR>8", fontsize=20)
-    plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
-    plt.legend()
-    plt.savefig(os.path.join(savepath, 'LISA_N2A5_3.png'))
+    plt.grid(axis='both', which='both')
+    plt.savefig(os.path.join(savepath, 'Figure_1.png'))
+
 
 # Check primordial distribution functions - Figure 2
 if fig2==True: 
@@ -150,17 +130,6 @@ if fig2==True:
     plt.xlim((10**-7, 10**-2))
     plt.savefig(os.path.join(savepath, 'Figure_2.png'))
 
-#    plt.figure(figsize=(7.5, 7.5))
-#    plt.plot(bins[:-1], isolated_counts, label=r'isolated', color='grey')
-#    plt.plot(bins[:-1], ejected_counts, label=r'ejected', color='red')
-#    plt.plot(bins[:-1], incluster_counts, label=r'in-cluster', color='purple')
-#    plt.plot(bins[:-1], galcenter_counts, label=r'gal. center', color='blue')
-#    plt.legend(fontsize=20)
-#    plt.ylabel(r"$e_0$-distribution", fontsize=20)
-#    plt.xlabel(r"$e_0$ at $f_{p0}=10$ Hz", fontsize=20)
-#    plt.xscale('log') 
-#    plt.savefig(os.path.join(savepath, 'Figure_2.png'))
-
 
 # Check LISA SNR - Figure 3
 if fig3==True:
@@ -219,14 +188,14 @@ if fig4==True:
     max_chi_in_Mpc = 3000.
     world1 = ed.World(
         chi_max=max_chi_in_Mpc, #Max comoving radius of spherical world
-        annual_merger_rate=50.0e-9 #Units: binaries/year/Gpc^3
+        annual_merger_rate=50.0e-9 #Units: binaries/year/Mpc^3
     )
     
     #Populate world with binaries 
     world1.populate_world(
         mass_distribution='1907.02283', #Use same mass distribution 
         chi_distribution='uniform', #Fix binaries at one comoving distance 
-        chi_args=[0., max_chi_in_Mpc], #Fix binaries at 100 Mpc comoving distance
+        chi_args=[max_chi_in_Mpc], #Fix binaries at 100 Mpc comoving distance
         cosmo=False
     )
     
@@ -255,103 +224,103 @@ if fig4==True:
     plt.savefig(os.path.join(savepath, 'mass_dist_2.png'))
     
     #Visualize binary position distribution
+    nbins = 200
+    xplot = np.arange(0., world1.chi_max, world1.chi_max/nbins)
+    expected = (4./3.)*np.pi*np.power(world1.chi_max, 3.)*world1.annual_merger_rate
     plt.figure(figsize=(15, 7.5))
-    plt.hist(world1.chi_values, density=False, bins=300)
+    plt.hist(world1.chi_values, density=False, bins=nbins)
+    plt.plot(
+        xplot[0:-1], 
+        (4.*np.pi*world1.annual_merger_rate)*np.power(xplot[0:-1], 2.)*np.diff(xplot),
+        label=r'$\frac{dN}{d\chi} = 4 \pi \mathcal{R} \chi^2$'
+    )
+    plt.text(100, 20, "Total Binaries: "+f'{len(world1.chi_values):d}')
+    plt.text(100, 15, "Expected Binaries: "+f'{expected:.1f}') 
     plt.xlabel(r'$\chi$ comoving [Mpc]', fontsize=20)
-    plt.ylabel('Counts', fontsize=20)
+    plt.ylabel('Binary Counts', fontsize=20)
+    plt.legend(fontsize=20)
     plt.grid(True, which='both', axis='both')
     plt.savefig(os.path.join(savepath, 'chi_dist.png'))
     
     #Initialize binary eccentricities
-    world2 = copy.deepcopy(world1)
-    world3 = copy.deepcopy(world1)
-    world4 = copy.deepcopy(world1)
-    world5 = copy.deepcopy(world1)
+    #world2 = copy.deepcopy(world1)
+    #world3 = copy.deepcopy(world1)
+    #world4 = copy.deepcopy(world1)
+    #world5 = copy.deepcopy(world1)
     
-    world1.initialize_eccentricities('fixed', np.power(10., -3.5))
-    world2.initialize_eccentricities('fixed', np.power(10., -4.0))
-    world3.initialize_eccentricities('fixed', np.power(10., -4.5))
-    world4.initialize_eccentricities('fixed', np.power(10., -5.0))
-    world5.initialize_eccentricities('fixed', np.power(10., -5.5))
+    world1.initialize_eccentricities('fixed', np.power(10., -5.5))
+    #world2.initialize_eccentricities('fixed', np.power(10., -4.0))
+    #world3.initialize_eccentricities('fixed', np.power(10., -4.5))
+    #world4.initialize_eccentricities('fixed', np.power(10., -5.0))
+    #world5.initialize_eccentricities('fixed', np.power(10., -5.5))
     
     #Visualize binary eccentricity distributions
     plt.figure(figsize=(15, 7.5))
-    plt.hist(world1.estar, density=False, bins=np.logspace(-6, -3, 7))
-    plt.hist(world2.estar, density=False, bins=np.logspace(-6, -3, 7))
-    plt.hist(world3.estar, density=False, bins=np.logspace(-6, -3, 7))
-    plt.hist(world4.estar, density=False, bins=np.logspace(-6, -3, 7))
-    plt.hist(world5.estar, density=False, bins=np.logspace(-6, -3, 7))
-    plt.xlabel(r'$\chi$ comoving [Mpc]', fontsize=20)
+    plt.hist(world1.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 1")
+    #plt.hist(world2.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 2")
+    #plt.hist(world3.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 3")
+    #plt.hist(world4.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 4")
+    #plt.hist(world5.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 5")
+    plt.xlabel(r'$e_*$', fontsize=20)
     plt.ylabel('Counts', fontsize=20)
+    plt.legend()
     plt.grid(True, which='both', axis='both')
     plt.xscale('log')
     plt.savefig(os.path.join(savepath, 'e_dist.png'))
     
     #Evaluate evolution e[fp|estar] for binaries
-    world1.solve_evolution(mode="interpolate")
-    world2.solve_evolution(mode="interpolate")
-    world3.solve_evolution(mode="interpolate")
-    world4.solve_evolution(mode="interpolate")
-    world5.solve_evolution(mode="interpolate")
+    world1.solve_evolution(mode="fixed")
+    #world2.solve_evolution(mode="fixed")
+    #world3.solve_evolution(mode="fixed")
+    #world4.solve_evolution(mode="fixed")
+    #world5.solve_evolution(mode="fixed")
     
-    #Evaluate LISA SNR for each world 
+    #Evaluate LISA SNR for each world
+    print("Generating SNR functions...") 
     world1.solve_snr()
-    world2.solve_snr()
-    world3.solve_snr()
-    world4.solve_snr()
-    world5.solve_snr()
+    #world2.solve_snr()
+    #world3.solve_snr()
+    #world4.solve_snr()
+    #world5.solve_snr()
     
     #Count number of observable binaries given maximally observable eccentricity
-    def count_N(world, log10fmin, log10fmax, N_bins=100):
-        totalcount = 0.
-        for mc_idx, mc_val in enumerate(world.mc_values[0:N_bins]):
-            integrand = lambda log10fp: (
-                1.
-                * np.power(np.power(10., log10fp), -11./3.)
-                * ed.F_script(world.e_of_fp_interp[mc_idx](np.power(10., log10fp)))
-    #            / np.power(np.power(10., -1.5), -11./3.)
-    #            /4.383
-                * np.power(mc_val*ed.msun_in_kg, -5./3.)
-                * np.power(ed.G, -5./3.)
-                * (5./96.)
-                * np.power(ed.c, 5.)
-                * np.power(np.pi, -8./3.) 
-            )
-            integral = np.nan_to_num(scipy.integrate.quad(integrand, log10fmin, log10fmax)[0])
-            counts = integral * world.theta_cut[mc_idx](np.power(10., log10fmin))
-            totalcount += counts
-            print(integral, ", ", counts, ", ", totalcount)
-        return totalcount
-    
     e_cutoffs=[0.01, 0.1, 0.4, 0.9]
     fpbins = np.logspace(-2.7, -1.5, 13)
-    log10dfp = np.log10(fpbins[1]) - np.log10(fpbins[0])
-    
+
     data1 = np.zeros((len(e_cutoffs), len(fpbins)-1))
-    data2 = np.zeros((len(e_cutoffs), len(fpbins)-1))
-    data3 = np.zeros((len(e_cutoffs), len(fpbins)-1))
-    data4 = np.zeros((len(e_cutoffs), len(fpbins)-1))
-    data5 = np.zeros((len(e_cutoffs), len(fpbins)-1))
+    #data2 = np.zeros((len(e_cutoffs), len(fpbins)-1))
+    #data3 = np.zeros((len(e_cutoffs), len(fpbins)-1))
+    #data4 = np.zeros((len(e_cutoffs), len(fpbins)-1))
+    #data5 = np.zeros((len(e_cutoffs), len(fpbins)-1))
     
     for ecutidx, ecutval in enumerate(e_cutoffs): 
         world1.solve_theta(e_cut=ecutval)
-        world2.solve_theta(e_cut=ecutval)
-        world3.solve_theta(e_cut=ecutval)
-        world4.solve_theta(e_cut=ecutval)
-        world5.solve_theta(e_cut=ecutval)
+        #world2.solve_theta(e_cut=ecutval)
+        #world3.solve_theta(e_cut=ecutval)
+        #world4.solve_theta(e_cut=ecutval)
+        #world5.solve_theta(e_cut=ecutval)
     
         for fp_idx, fp_val in enumerate(fpbins[0:-1]):
-            data1[ecutidx][fp_idx] = count_N(world1, np.log10(fp_val), np.log10(fp_val)+log10dfp)
-            data2[ecutidx][fp_idx] = count_N(world2, np.log10(fp_val), np.log10(fp_val)+log10dfp)
-            data3[ecutidx][fp_idx] = count_N(world3, np.log10(fp_val), np.log10(fp_val)+log10dfp)
-            data4[ecutidx][fp_idx] = count_N(world4, np.log10(fp_val), np.log10(fp_val)+log10dfp)
-            data5[ecutidx][fp_idx] = count_N(world5, np.log10(fp_val), np.log10(fp_val)+log10dfp)
+            world1.count_N(
+                np.log10(fpbins[fp_idx]), 
+                np.log10(fpbins[fp_idx+1]),
+                100
+            )
+
+            data1[ecutidx][fp_idx] = np.sum(world1.N_counts) 
+        #    data2[ecutidx][fp_idx] = count_N(world2, np.log10(fp_val), np.log10(fp_val)+log10dfp)
+        #    data3[ecutidx][fp_idx] = count_N(world3, np.log10(fp_val), np.log10(fp_val)+log10dfp)
+        #    data4[ecutidx][fp_idx] = count_N(world4, np.log10(fp_val), np.log10(fp_val)+log10dfp)
+        #    data5[ecutidx][fp_idx] = count_N(world5, np.log10(fp_val), np.log10(fp_val)+log10dfp)
     
+    np.savetxt(savepath+"/count_N.txt", data1)
+
+
     np.savetxt(savepath+"/nocosmo_chi3000uniform_estar3p5.txt", data1)
-    np.savetxt(savepath+"/nocosmo_chi3000uniform_estar4p0.txt", data2)
-    np.savetxt(savepath+"/nocosmo_chi3000uniform_estar4p5.txt", data3)
-    np.savetxt(savepath+"/nocosmo_chi3000uniform_estar5p0.txt", data4)
-    np.savetxt(savepath+"/nocosmo_chi3000uniform_estar5p5.txt", data5)
+    #np.savetxt(savepath+"/nocosmo_chi3000uniform_estar4p0.txt", data2)
+    #np.savetxt(savepath+"/nocosmo_chi3000uniform_estar4p5.txt", data3)
+    #np.savetxt(savepath+"/nocosmo_chi3000uniform_estar5p0.txt", data4)
+    #np.savetxt(savepath+"/nocosmo_chi3000uniform_estar5p5.txt", data5)
     
     #Visualize observable number counts
     colors = [
@@ -362,35 +331,121 @@ if fig4==True:
     ]
     
     
-    plt.figure(figsize=(7.5, 7.5))
-    plt.hist(
-        np.log10(fpbins)[0:-1], 
-        weights=data5[0], 
-        bins=np.log10(fpbins), 
-        color=colors[0],  
-        label=r'$e < 0.01$', 
-        linewidth=4, 
-        histtype='step'
+#    plt.figure(figsize=(7.5, 7.5))
+#    plt.hist(
+#        np.log10(fpbins)[0:-1], 
+#        weights=data5[0], 
+#        bins=np.log10(fpbins), 
+#        color=colors[0],  
+#        label=r'$e < 0.01$', 
+#        linewidth=4, 
+#        histtype='step'
+#    )
+#    plt.hist(
+#        np.log10(fpbins)[0:-1], 
+#        weights=data5[1], 
+#        bins=np.log10(fpbins), 
+#        color=colors[1], 
+#        label=r'$0.01 < e < 0.1$', 
+#        linewidth=4, 
+#        histtype='step'
+#    )
+#    plt.title("Fixed Formation $e_*$ Distribution, Static Cosmology", fontsize=20)
+#    plt.legend(fontsize=20)
+#    plt.xlabel(r"$\log (f_p/Hz)$", fontsize=20)
+#    plt.ylabel(r"LISA N2A5 Observable Counts", fontsize=20)
+#    plt.savefig(savepath+"/nocosmo_chivaried_estarfixed.png")
+
+
+# Check LISA SNR Functions
+if extra1==True: 
+    x = np.logspace(-5, 0, 501)
+    y = np.array([np.sqrt(ed.SnLISAdefault(xval)) for xval in x])
+    plt.figure(figsize=(15, 7.5))
+    plt.plot(x, y)
+    plt.grid(True, which='both', axis='both')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel(r"$f_p$ [Hz]", fontsize=20)
+    plt.ylabel(r"$(Noise)^{1/2}$", fontsize=20)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
+    plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
+    plt.savefig(os.path.join(savepath, 'LISA_N2A5_1.png'))
+    
+    x = np.logspace(-5, 0, 501)
+    y = np.array([np.power(xval, 0.5)*np.sqrt(ed.SnLISAdefault(xval)) for xval in x])
+    plt.figure(figsize=(15, 7.5))
+    plt.plot(x, y)
+    plt.grid(True, which='both', axis='both')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel(r"$f_p$ [Hz]", fontsize=20)
+    plt.ylabel(r"$(f_p \times Noise)^{1/2}$", fontsize=20)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
+    plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
+    plt.savefig(os.path.join(savepath, 'LISA_N2A5_2.png'))
+    
+    fp = np.logspace(-4, 1, 51)
+    m = np.arange(10.*ed.msun_in_kg, 100.*ed.msun_in_kg, 10.*ed.msun_in_kg)
+    y = np.array([[
+            ed.roffmSNR8(100., f, 0., mval, mval/4., 10.)
+            for f in fp]
+            for mval in m]
+        )
+    y2 = np.nan_to_num(y)
+    roffmSNR8intpl = scipy.interpolate.interp2d(fp, m, y2, kind='linear')
+    sns.set_palette("magma", len(m))
+    fp = np.logspace(-4, 1, 501)
+    plt.figure(figsize=(15, 7.5))
+    for mass in m: 
+        plt.plot(fp, roffmSNR8intpl(fp, mass)/((10.**6)*ed.pc_in_meters), label="M = "+f'{mass/ed.msun_in_kg:.2e}'+r' $M_{sun}$')
+    plt.xscale('log')
+    plt.grid(True, which='both', axis='both')
+    plt.xlabel(r"$f_p$ [Hz]", fontsize=20)
+    plt.ylabel(r"r [Mpc] s.t. SNR>8", fontsize=20)
+    plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
+    plt.legend()
+    plt.savefig(os.path.join(savepath, 'LISA_N2A5_3.png'))
+
+if extra2==True: 
+    evolution = ed.e_to_fp_interpolator(10., np.power(10., -4.))
+    e_of_fp_interp = evolution[3]
+    fp_min = evolution[0]
+    fp_max = evolution[1]
+    mc = ed.m_chirp(10., 10.)
+
+    xplot = np.logspace(np.log10(fp_min)+0.1, -1.5, 100)
+    yplot = np.linspace(0., 1000., 1001)
+    xx, yy = np.meshgrid(xplot, yplot)
+
+    zplot = (
+        np.power(yy, 2.)
+        * ed.dtdfp(mc, xx, e_of_fp_interp(xx))
     )
-    plt.hist(
-        np.log10(fpbins)[0:-1], 
-        weights=data5[1], 
-        bins=np.log10(fpbins), 
-        color=colors[1], 
-        label=r'$0.01 < e < 0.1$', 
-        linewidth=4, 
-        histtype='step'
+
+    plt.figure(figsize=(15, 15))
+    plt.contourf(xx, yy, zplot)
+    plt.xscale('log')
+    plt.colorbar()
+    plt.xlabel(r'$f_p$')
+    plt.ylabel(r'$\chi$ [Mpc]')
+    plt.title(r'$\frac{dt[f_p, m_c]}{df_p} r^2, \quad m_c = $' + f'{mc:.2f}' + r' $M_\odot$')
+    plt.savefig(os.path.join(savepath, 'r2dtdfp.png'))
+    
+    zplot = (
+        ed.dtdfp(mc, xx, e_of_fp_interp(xx))
     )
-    plt.title("Fixed Formation $e_*$ Distribution, Static Cosmology", fontsize=20)
-    plt.legend(fontsize=20)
-    plt.xlabel(r"$\log (f_p/Hz)$", fontsize=20)
-    plt.ylabel(r"LISA N2A5 Observable Counts", fontsize=20)
-    plt.savefig(savepath+"/nocosmo_chivaried_estarfixed.png")
 
-
-
-
-
+    plt.figure(figsize=(15, 15))
+    plt.contourf(xx, yy, zplot)
+    plt.xscale('log')
+    plt.colorbar()
+    plt.xlabel(r'$f_p$')
+    plt.ylabel(r'$\chi$ [Mpc]')
+    plt.title(r'$\frac{dt[f_p, m_c]}{df_p}, \quad m_c = $' + f'{mc:.2f}' + r' $M_\odot$')
+    plt.savefig(os.path.join(savepath, 'dtdfp.png'))
 
 
 
