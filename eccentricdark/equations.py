@@ -7,7 +7,7 @@ def m_chirp(m1, m2):
     if ((m1==0) or (m2==0)): 
         return 0.
     else: 
-        return np.power(m1*m2, 3./5.)/np.power(m1+m2, 1./5.) # Units: kg^1
+        return np.power(m1*m2, 3./5.)/np.power(m1+m2, 1./5.) # Units: mass^1
 
 def m_reduced(m1, m2): 
     if ((m1==0.) or (m2==0.)): 

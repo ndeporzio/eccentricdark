@@ -19,6 +19,11 @@ class World:
         self.is_evolved=False
         self.use_cosmology=False
 
+        self.estar_distribution=None
+        self.estar_args=None
+        self.estar=None
+        self.estar_invcdf = None
+
         self.chi_max = chi_max
         self.annual_merger_rate = annual_merger_rate
     
@@ -74,13 +79,13 @@ class World:
 
         while world_full==False: 
             
-            if ((counter%int(np.floor(self.binary_limit/100.)))==0): 
-                print(
-                    'Sample evaluation is '
-                    + str(np.floor(100.*counter/self.binary_limit))
-                    + '% complete...', end=""
-                )
-                print("\r", end="")
+            #if ((counter%int(np.floor(self.binary_limit/100.)))==0): 
+            #    print(
+            #        'Sample evaluation is '
+            #        + str(np.floor(100.*counter/self.binary_limit))
+            #        + '% complete...', end=""
+            #    )
+            #    print("\r", end="")
             
             sample = ed.mass_distribution_sampler(
                 form=self.mass_distribution, 
@@ -139,14 +144,13 @@ class World:
 
         self.estar_distribution = estar_distribution
         self.estar_args = args
-        self.invcdf = None
 
         print("Building eccentricity interpolator...")
-        self.invcdf = ed.estar_sampler(estar_distribution, args) 
-        self.estar_sampler = (lambda : self.invcdf(np.random.random(1))) 
+        self.estar_invcdf = ed.estar_sampler(estar_distribution, args) 
+        self.estar_sampler = (lambda : self.estar_invcdf(np.random.random(1))) 
 
         print("Generating eccentricity samples...") 
-        self.estar = self.invcdf(np.random.random(len(self.mc_values)))
+        self.estar = self.estar_invcdf(np.random.random(len(self.mc_values)))
 
     def solve_evolution(
         self,
@@ -162,7 +166,24 @@ class World:
         self.fp_of_e_interp = [0]*len(self.mc_values)
         self.e_of_fp_interp = [0]*len(self.mc_values)
 
-        if (mode=="individual"): # Warning: high memory use
+        if (mode=="fixed"): 
+            if np.any(self.estar != self.estar[0]): 
+                print("Cannot evaluate e[fp] in 'fixed' mode if binaries "
+                    + "have different e* values...")
+                return
+            
+            evolution = ed.e_to_fp_interpolator(fp_star=fpstar, e_star=self.estar[0])
+            for mc_idx, mc_val in enumerate(self.mc_values):
+                self.fp_min[mc_idx] = evolution[0]
+                self.fp_max[mc_idx] = evolution[1]
+                self.fp_of_e_interp[mc_idx] = evolution[2]
+                self.e_of_fp_interp[mc_idx] = evolution[3]
+
+        elif (mode=="individual"): # Warning: high memory use
+            if (self.estar_distribution=='fixed'):
+                print("The e* distribution is constant. Re-run using 'fixed' mode...")
+                return 
+                
             print("Evaluating e[fp] for given e*, fp*...")
             for mc_idx, mc_val in enumerate(self.mc_values):
                 if (mc_idx%10==0): 
@@ -174,6 +195,9 @@ class World:
                 self.fp_of_e_interp[mc_idx] = evolution[2]
                 self.e_of_fp_interp[mc_idx] = evolution[3]
         elif (mode=="interpolate"): 
+            if (self.estar_distribution=='fixed'):
+                print("The e* distribution is constant. Re-run using 'fixed' mode...")
+                return
             if (self.is_evolved==False): 
                 estar_max = np.max(self.estar)
                 estar_min = np.min(self.estar)
@@ -239,24 +263,19 @@ class World:
 
     def solve_snr(
         self,
-        t=10., 
-        chi_fixed=None
+        t=10. 
     ): 
         self.r_of_SNR8 = [0]*(len(self.mc_values))
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
-            if chi_fixed==None: 
-                chi = self.chi_values[mc_idx]
-            else: 
-                chi = np.float(chi_fixed)
             self.r_of_SNR8[mc_idx] = lambda fp, mc_idx=mc_idx: ed.roffmSNR8(
-                chi, 
+                100., 
                 fp, 
                 self.e_of_fp_interp[mc_idx](fp),
                 self.m1_values[mc_idx]*ed.msun_in_kg, 
                 self.m2_values[mc_idx]*ed.msun_in_kg, 
                 t
-            )
+            )/((10.**6)*ed.pc_in_meters)
 
     def solve_theta(self, e_cut):
         self.e_cut = e_cut
@@ -265,22 +284,38 @@ class World:
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
             self.fp_cut[mc_idx] = max(self.fp_of_e_interp[mc_idx](e_cut), self.fp_min[mc_idx])
-            self.theta_cut[mc_idx] = lambda fp, mc_idx=mc_idx: np.nan_to_num(
-                np.heaviside(np.nan_to_num(self.r_of_SNR8[mc_idx](fp))/((10.**6)*ed.pc_in_meters)
-                     - self.chi_values[mc_idx], 0.)
-                * np.heaviside(fp - self.fp_cut[mc_idx], 0.)                
-            )      
 
-    def count_N(self, log10fmin, log10fmax): 
+            self.theta_cut[mc_idx] = (lambda fp, mc_idx=mc_idx: (
+                0. if (fp < self.fp_cut[mc_idx]) else (
+                0. if (self.r_of_SNR8[mc_idx](fp) < self.chi_values[mc_idx]) else
+                1.
+                )
+            ))
+
+    def count_N(self, log10fmin, log10fmax, binary_subset_count=None): 
         self.N_counts = np.zeros(len(self.mc_values))
 
-        for mc_idx, mc_val in enumerate(self.mc_values): 
-            integrand = lambda log10fp, mc_idx=mc_idx: (
-                ed.dtdfp(self.mc_values[mc_idx], np.power(10., log10fp), 
-                    self.e_of_fp_interp[mc_idx](np.power(10., log10fp))) 
-                * self.theta_cut[mc_idx](np.power(10., log10fp))
-            )
-            self.N_counts = scipy.integrate.quad(integrand, log10fmin, log10fmax)
+        if (binary_subset_count==None): 
+            nmax = len(self.mc_values)-1
+        else: 
+            nmax = int(binary_subset_count) 
+
+        for mc_idx, mc_val in enumerate(self.mc_values[0:nmax]):
+            if (log10fmax < np.log10(self.fp_cut[mc_idx])):
+                self.N_counts[mc_idx]=0.
+            else: 
+                integrand = lambda log10fp, mc_idx=mc_idx: (
+                    ed.dtdfp(
+                        self.mc_values[mc_idx], 
+                        np.power(10., log10fp), 
+                        self.e_of_fp_interp[mc_idx](np.power(10., log10fp))
+                    ) 
+                    * self.theta_cut[mc_idx](np.power(10., log10fp))
+                )
+
+
+                self.N_counts[mc_idx] = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
+                print("... ", self.N_counts[mc_idx], " for log10fpmin = ", log10fmin)            
 
     def save(
         self, 
@@ -321,21 +356,21 @@ class World:
 
         np.savetxt(filepath, data, header=header_text, comments='#')
 
-    def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):
-        totalcount = 0.
-        for mc_idx, mc_val in enumerate(self.mc_values[0:Max_N_binaries]):
-            integrand = lambda log10fp: (
-                1.
-                * np.power(np.power(10., log10fp), -11./3.)
-                / np.power(np.power(10., -1.5), -11./3.)
-                * ed.F_script(self.e_of_fp_interp[mc_idx](np.power(10., log10fp)))
-                /4.383
-            )
-            integral = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
-            counts = integral * self.theta_cut[mc_idx](np.power(10., log10fmin))
-            totalcount += counts
-            #print(integral, ", ", counts, ", ", totalcount)
-        return totalcount
+    #def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):
+    #    totalcount = 0.
+    #    for mc_idx, mc_val in enumerate(self.mc_values[0:Max_N_binaries]):
+    #        integrand = lambda log10fp: (
+    #            1.
+    #            * np.power(np.power(10., log10fp), -11./3.)
+    #            / np.power(np.power(10., -1.5), -11./3.)
+    #            * ed.F_script(self.e_of_fp_interp[mc_idx](np.power(10., log10fp)))
+    #            /4.383
+    #        )
+    #        integral = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
+    #        counts = integral * self.theta_cut[mc_idx](np.power(10., log10fmin))
+    #        totalcount += counts
+    #        #print(integral, ", ", counts, ", ", totalcount)
+    #    return totalcount
 
 def load_world(filepath): 
     header_text = []
