@@ -277,6 +277,18 @@ class World:
                 t
             )/((10.**6)*ed.pc_in_meters)
 
+    def initialize_dndfp(self): 
+        self.fp = [0]*(len(self.mc_values))
+    
+        for mc_idx, mc_val in enumerate(self.mc_values):
+            self.fp[mc_idx] = ed.dndfp_sampler(
+                mc_val, 
+                self.e_of_fp_interp[mc_idx], 
+                self.fp_min[mc_idx], 
+                self.fp_max[mc_idx], 
+                'log'
+            ) 
+
     def solve_theta(self, e_cut):
         self.e_cut = e_cut
         self.theta_cut = [0]*(len(self.mc_values))
@@ -316,6 +328,20 @@ class World:
 
                 self.N_counts[mc_idx] = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
                 print("... ", self.N_counts[mc_idx], " for log10fpmin = ", log10fmin)            
+
+    def count_N2(self, log10fmin, log10fmax): 
+        self.N_counts = np.zeros(len(self.mc_values))
+
+        for mc_idx, mc_val in enumerate(self.mc_values): 
+            log10fp = np.log10(self.fp[mc_idx])
+
+            if ((log10fp > log10fmin) and (log10fp < log10fmax)):
+                count = self.theta_cut[mc_idx](np.power(10., log10fp))
+                #print("fp in observation window. Count = ", count) 
+                self.N_counts[mc_idx] = count
+
+        total = np.sum(self.N_counts)
+        return total 
 
     def save(
         self, 

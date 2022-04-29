@@ -15,20 +15,24 @@ def m_reduced(m1, m2):
     else: 
         return ((m1*m2)/(m1+m2))
 
-def G_script( # 1907.02283, eq 2
-    e #Unitless
-    ): 
-    return (
-        (np.power(e, 12./19.)/(1-np.power(e, 2.))) 
-        * np.power(1. + (121./304.)*np.power(e, 2.), 870./2299.) 
-    ) #Unitless
+#def G_script( # 1907.02283, eq 2
+#    e #Unitless
+#    ): 
+#    return (
+#        (np.power(e, 12./19.)/(1-np.power(e, 2.))) 
+#        * np.power(1. + (121./304.)*np.power(e, 2.), 870./2299.) 
+#    ) #Unitless
 
 def H_script( # 1907.02283, eq 4
     e #Unitless
     ):
     return (
         np.power(1.+e, ed.gamma) 
-        / np.power((1.-np.power(e, 2.))*G_script(e), 3./2.)
+        * np.power(
+            np.power(e, 12./19.)
+            *np.power(1.+(121./304.)*np.power(e, 2.), 870./2299.)
+            , -3./2.
+        )
     ) # Unitless
 
 
@@ -150,12 +154,19 @@ def N_estarfixed(R, f, chi_max, mass_distribution, estar, fpstar):
 
 def fpeak(m1, m2, a, e): # equation 3
     m = m1 + m2
-    val = (
-        np.sqrt(ed.G * m)
-        * np.power(1.0 + e, ed.gamma)
-        * (1.0/np.pi)
-        * np.power(a * (1.0 - e**2), -3.0/2.0)
-    )
+    if (e==0.): 
+        val = (
+            np.sqrt(ed.G*m)
+            * np.power(a, -3./2.)
+            * (1./np.pi) 
+        )
+    else: 
+        val = (
+            np.sqrt(ed.G * m)
+            * np.power(1.0 + e, ed.gamma)
+            * (1.0/np.pi)
+            * np.power(a * (1.0 - e**2), -3.0/2.0)
+        ) #CAUTION: Blows up for e=1
     return val 
 
 def dadt(m1, m2, a, e): # equation 1a 
@@ -172,7 +183,7 @@ def dadt(m1, m2, a, e): # equation 1a
         * np.power(a, -3.)
         * (1.0 + (73./24.)*(e**2) + (37./96.)*(e**4))
         * np.power(1.0 - e**2, -7./2.)
-    )
+    ) #CAUTION: Blows up for e=1
     return val 
 
 def dedt(m1, m2, a, e): # equation 1b
@@ -190,7 +201,7 @@ def dedt(m1, m2, a, e): # equation 1b
         * e
         * (1.0 + (121./304.)*(e**2))
         * np.power(1.0 - e**2, -5./2.)
-    )
+    ) #CAUTION: Blows up for e=1
     return val
 
 def tmerge(fp, e, m1, m2):
@@ -206,11 +217,14 @@ def tmerge(fp, e, m1, m2):
         * np.power(np.power(1.+e, 2.*ed.gamma/3.)*np.power(ed.G * m, 1./3.) , 4.)
         * np.power((1.-e**2)*np.power(fp*np.pi, 2./3.), -4.) 
         * np.power(1.0 - e**2 , 7./2.)
-    )
+    ) #CAUTION: Blows up for e=1
     
     return val 
 
 def afe(fp, e, m1, m2): # semi-major axis "a" as a function of "e, fp, m1, m2"
+    if e==1.: 
+        print("ERROR: afe function blows up for e=1!") 
+
     m = m1 + m2
 
     val = (
@@ -224,45 +238,85 @@ def BBHevolve(                          #Fast
     fp0, e0, m1, m2, 
     t0=(0.*ed.year_in_seconds), 
     tf=(10.*ed.year_in_seconds), 
-    dt=ed.dtevolve
+    dt=ed.dtevolve,
+    evolve_factor = 0.01, 
+    verbose=0
 ):
+
+    try: 
+        tmerge = ed.tmerge(fp0, e0, m1, m2)
+    except: 
+        tmerge = 1.0*ed.year_in_seconds
+
+    dt = tmerge/1.0e2
+
     m = m1 + m2
-    merger = False
-    size = int((tf-t0)/dt)+1
+    merger = None
+    merger_idx = None
 
-    t = size * [0]
-    a = size * [0]
-    e = size * [0]
-    ap = size * [0]
-    ep = size * [0]
+    t = [] 
+    a = [] 
+    e = []  
+    fp = [] 
+    ap = []
+    ep = []
 
-    t[0] = t0
-    a[0] = ed.afe(fp0, e0, m1, m2)
-    e[0] = e0
+    t.append(t0)
+    a.append(ed.afe(fp0, e0, m1, m2))
+    e.append(e0)
+    fp.append(fp0)
+    ap.append(0)
+    ep.append(0)
 
-    t[-1] = tf
+    N = 1
+    #Rs = (6.*ed.G*m/(ed.c**2)) 
+    Rs = (2.*ed.G*m/(ed.c**2)) 
+    while (a[N-1] > Rs):  
+        t.append(0)
+        a.append(0)
+        e.append(0)
+        fp.append(0)
+        ap.append(0) #Maybe don't do this? 
+        ep.append(0) #Maybe don't do this? 
 
-    for idx in range(len(t)):
-        if (idx!=0) and (idx!=(len(t)-1)):
-            t[idx]=t[idx-1]+dt
+        good_evolve=False
+        while good_evolve==False: 
+            t[N] = t[N-1]+dt
+            ap[N-1] = ed.dadt(m1, m2, a[N-1], e[N-1])
+            ep[N-1] = ed.dedt(m1, m2, a[N-1], e[N-1])             
+            a[N] = max(a[N-1] + ap[N-1]*dt, 0.)
+            e[N] = max(e[N-1] + ep[N-1]*dt, 0.)
+            fp[N] = ed.fpeak(m1, m2, a[N], e[N])
 
-    for idx in range(len(t)):
-        ap[idx] = ed.dadt(m1, m2, a[idx], e[idx])
-        ep[idx] = ed.dedt(m1, m2, a[idx], e[idx])
+            converge_test = ((a[N-1] - a[N])/a[N-1]) #this ordering to keep quantity positive
 
-        if (idx!=(len(t)-1)): #do for all but last entry 
-            a[idx+1] = a[idx] + ap[idx]*dt
-            e[idx+1] = e[idx] + ep[idx]*dt
+            if (converge_test>evolve_factor): #too large of a change in a[t]
+                if (verbose>0): 
+                    print("\t Fail: ", converge_test)
+                dt = 0.5*dt
+            else: #good step, continue to next index
+                if (verbose>0): 
+                    print("a = ", a[N], ", Rs = ", Rs)
+                good_evolve=True
+                N = len(t)
 
-            if (a[idx+1] < (6.*ed.G*m/(ed.c**2))): 
-                merger = t[idx]
-                break 
-                
-
-    return [np.array(t).flatten(), np.array(a).flatten(), np.array(e).flatten(), merger]    
+    merger = t[-1]
+    merger_idx = (len(t)-1)
+    
+    return [
+        np.array(t).flatten(), 
+        np.array(a).flatten(), 
+        np.array(e).flatten(), 
+        merger, 
+        merger_idx, 
+        np.array(fp).flatten()
+    ]    
 
 def fpr(fp0, e0, m1, m2, ainterp=None, einterp=None): 
 
+    if e0==1.:
+        print("ERROR in fpr function. Blows up for e=1!")
+ 
     m = m1 + m2
 
     if ((ainterp==None) or (einterp==None)): 
@@ -324,46 +378,39 @@ def snrintsol(
     e = BBHsol[2]
     merger = BBHsol[3]
 
-    ainterp = scipy.interpolate.interp1d(t, a)
-    einterp = scipy.interpolate.interp1d(t, e)
-
-    if (merger==False): 
-        tf = ttoday 
+    if (len(t)<2): 
+        return 0. 
     else: 
-        tf = merger 
-
-    dt = t[1]-t[0]
-    t0 = (0. * ed.year_in_seconds)
-
-    size = int((tf-t0)/dt)+1
-
-    t = size * [0]
-    sol = size * [0]
-    solp = size * [0]
-
-    t[0] = t0
-    sol[0] = 0.
-
-    t[-1] = tf
-
-    for idx in range(len(t)):
-        if (idx!=0) and (idx!=(len(t)-1)):
-            t[idx]=t[idx-1]+dt
-
-        solp[idx] = ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp)(t[idx])
-
-        if (idx!=(len(t)-1)): #do for all but last entry 
-            sol[idx+1] = sol[idx] + solp[idx]*dt
-
-    return sol[-1] 
+        ainterp = scipy.interpolate.interp1d(t, a)
+        einterp = scipy.interpolate.interp1d(t, e)
     
+        if (merger==None): 
+            tf = ttoday 
+        else: 
+            tf = merger 
+    
+        dt = np.diff(t)
+        t0 = (0. * ed.year_in_seconds)
+    
+        t = [0.]
+        solp = [0.]
+        sol = [0.]
+    
+        while t[-1]<tf: 
+            N=len(t)
+            t.append(t[N-1]+dt[N-1]) 
+            solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp)(t[N]))
+            sol.append(sol[N-1] + solp[N]*dt[N-1])
+            
+        return sol[-1]
+
 
 def SNR_LISA(
     r, # distance in pc 
     fp0, # frequency in detector 
     e0, # eccentricity in detector
-    m1, # binary mass 1 in Msun
-    m2, # binary mass 2 in Msun
+    m1, # binary mass 1 in kg 
+    m2, # binary mass 2 in kg 
     ttoday # observation time in seconds
 ): 
     
@@ -385,8 +432,8 @@ def roffmSNR8(
     r, # distance in Mpc 
     fp, # peak frequency of signal 
     e,  # Eccentricity of signal 
-    m1,  # Binary 1 mass in Msun
-    m2, # Binary 2 mass in Msun
+    m1,  # Binary 1 mass in kg
+    m2, # Binary 2 mass in kg
     t #years
     ): 
 

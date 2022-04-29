@@ -12,8 +12,8 @@ sns.set()
 fig1 = False 
 fig2 = False 
 fig3 = False 
-fig4 = True
-extra1 = False
+fig4 = False
+extra1 = True
 extra2 = False 
 
 #Collect output directory 
@@ -25,32 +25,70 @@ else:
 
 #Check LISA SNR - Figure 1 
 if fig1==True:
-    fp_table = np.logspace(-4, 2, 61)
-    estar_table = np.array([1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6])
-    
-    e_of_fp = np.array([[
-        ed.e_solver(
-            f_p=fpval,
-            fp_star=10., #Units: Hz 
-            e_star=estarval
+    fp = np.logspace(-4, 1, 51)
+    m = np.geomspace(1.0e1*ed.msun_in_kg, 1.0e6*ed.msun_in_kg, 6)
+    y = np.array([[
+            ed.roffmSNR8(100., f, 0., mval, mval/4., 10.)
+            for f in fp]
+            for mval in m]
         )
-        for fpidx, fpval in enumerate(fp_table)]
-        for estaridx, estarval in enumerate(estar_table)])
-    
+    y2 = np.nan_to_num(y)
+    roffmSNR8intpl = scipy.interpolate.interp2d(fp, m, y2, kind='linear')
+    sns.set_palette("magma", len(m))
+    fp = np.logspace(-4, 1, 601)
     plt.figure(figsize=(15, 7.5))
-    plt.title("Fig. 1 in 1907.02283", fontsize=20)
-    plt.xlabel(r"$f_p$/Hz", fontsize=20)
-    plt.ylabel(r"$e$", fontsize=20)
-    for estaridx, estarval in enumerate(estar_table): 
-        plt.plot(fp_table, e_of_fp[estaridx, :], label=r"$e_*=$"+f'{estarval:.1e}')
-    plt.plot([1.0e-4, 1.0e2], [1., 1.], color='black', label=r"e=1.0")
-    plt.plot([1.0e-4, 1.0e2], [2.0e-3, 2.0e-3], color='black', alpha=0.2)
-    plt.legend(fontsize=20)
-    plt.xlim((1.0e-4, 1.0e2))
-    plt.ylim((1.0e-3, 10**0.1))
-    plt.yscale('log')
-    plt.xscale('log')
-    plt.grid(axis='both', which='both')
+    for mass in m:
+        plt.plot(
+            np.log10(fp),
+            np.log10(roffmSNR8intpl(fp, mass)/((10.**6)*ed.pc_in_meters)),
+            label="M = "+f'{mass/ed.msun_in_kg:.2e}'+r' $M_{sun}$'
+        )
+
+    ax = plt.gca()
+    lisa_rect = Rectangle(
+        (-2.6, -3.),
+        1.0,
+        9.,
+        facecolor='blue',
+        alpha=0.2)
+    tian_rect = Rectangle(
+        (-1.8, -3.),
+        1.0,
+        9.,
+        facecolor='green',
+        alpha=0.2
+    )
+    decigo_rect = Rectangle(
+        (-1., -3.),
+        2.,
+        9.,
+        facecolor='red',
+        alpha=0.2
+    )
+    ligo_rect = Rectangle(
+        (0.477, -3),
+        1,
+        9.,
+        facecolor='grey',
+        alpha=0.2
+    )
+    ax.add_patch(lisa_rect)
+    ax.add_patch(tian_rect)
+    ax.add_patch(decigo_rect)
+    ax.add_patch(ligo_rect)
+
+    plt.text(-2.5, -2.,"LISA")
+    plt.text(-1.5, -2.,"TianQin")
+    plt.text(-0.5, -2.,"DECIGO")
+    plt.text(0.6, -2.,"LIGO")
+    plt.ylim((-3., 6.))
+    plt.xlim((-4, 1.))
+    plt.grid(True, which='both', axis='both')
+    plt.xlabel(r"log($f_p/$[Hz])", fontsize=20)
+    plt.ylabel(r"log(r/[Mpc]) s.t. SNR>8", fontsize=20)
+    plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
+    plt.legend()
+
     plt.savefig(os.path.join(savepath, 'Figure_1.png'))
 
 
@@ -301,10 +339,9 @@ if fig4==True:
         #world5.solve_theta(e_cut=ecutval)
     
         for fp_idx, fp_val in enumerate(fpbins[0:-1]):
-            world1.count_N(
+            world1.count_N2(
                 np.log10(fpbins[fp_idx]), 
-                np.log10(fpbins[fp_idx+1]),
-                100
+                np.log10(fpbins[fp_idx+1])
             )
 
             data1[ecutidx][fp_idx] = np.sum(world1.N_counts) 

@@ -39,6 +39,9 @@ from .cosmology import (
     comoving_volume, 
     redshift_solver
 )
+from .dndfpdistributions import(
+    dndfp_sampler
+)
 from .eccentricitydistributions import (
     estar_sampler, 
     fieldData,
@@ -50,7 +53,7 @@ from .eccentricitydistributions import (
 from .equations import (
     m_chirp,
     m_reduced, 
-    G_script, 
+    #G_script, 
     H_script, 
     e_to_fp_interpolator,
     e_solver,
@@ -63,6 +66,7 @@ from .equations import (
     dadt,
     dedt,
     tmerge,
+    #lifetime30Msun,
     afe,
     BBHevolve,
     fpr, 
