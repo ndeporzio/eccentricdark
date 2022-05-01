@@ -340,7 +340,8 @@ def fpr(fp0, e0, m1, m2, ainterp=None, einterp=None):
     
     return val 
 
-def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einterp=None): #Fast 
+def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einterp=None,
+    experiment="LISA"): #Fast 
 
     if ((ainterp==None) or (einterp==None)):
         BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tf)
@@ -354,13 +355,25 @@ def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einter
 
     fpr = ed.fpr(fp0, e0, m1, m2, ainterp, einterp)
 
-    val = (
-        lambda t : (
-            np.power(np.pi * fpr(t), 4./3.)
-            * np.power(1. - einterp(t), 3./2.)
-            * (1./ed.SnLISAdefault(fpr(t)))
+    if experiment=="LISA":
+        val = (
+            lambda t : (
+                np.power(np.pi * fpr(t), 4./3.)
+                * np.power(1. - einterp(t), 3./2.)
+                * (1./ed.SnLISAdefault(fpr(t)))
+            )
         )
-    )
+    elif experiment=="DECIGO":
+        try: 
+            val = (
+                lambda t : (
+                    np.power(np.pi * fpr(t), 4./3.)
+                    * np.power(1. - einterp(t), 3./2.)
+                    * (1./ed.SnDECIGOdefault(fpr(t)))
+                )
+            )
+        except: 
+            print(fpr(t))
 
     return val 
 
@@ -369,7 +382,8 @@ def snrintsol(
     e0, # signal eccentricity in detector
     m1, # binary mass 1 in Msun
     m2, # binary mass 2 in Msun 
-    ttoday # observation time in seconds 
+    ttoday, # observation time in seconds 
+    experiment="LISA"
 ): #Slow
      
     BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
@@ -387,7 +401,7 @@ def snrintsol(
         if (merger==None): 
             tf = ttoday 
         else: 
-            tf = merger 
+            tf = min(ttoday, merger) 
     
         dt = np.diff(t)
         t0 = (0. * ed.year_in_seconds)
@@ -399,7 +413,7 @@ def snrintsol(
         while t[-1]<tf: 
             N=len(t)
             t.append(t[N-1]+dt[N-1]) 
-            solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp)(t[N]))
+            solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, experiment)(t[N]))
             sol.append(sol[N-1] + solp[N]*dt[N-1])
             
         return sol[-1]
@@ -411,7 +425,8 @@ def SNR_LISA(
     e0, # eccentricity in detector
     m1, # binary mass 1 in kg 
     m2, # binary mass 2 in kg 
-    ttoday # observation time in seconds
+    ttoday, # observation time in seconds
+    experiment="LISA"
 ): 
     
     m = m1 + m2
@@ -422,7 +437,7 @@ def SNR_LISA(
         * np.power(ed.c, -8.) 
         * np.power(r, -2.) 
         * np.power(ed.G * np.power(mu, 3./5.) * np.power(m, 2./5.), 10./3.)
-        * ed.snrintsol(fp0, e0, m1, m2, ttoday)
+        * ed.snrintsol(fp0, e0, m1, m2, ttoday, experiment)
     )
 
     return val 
@@ -434,7 +449,8 @@ def roffmSNR8(
     e,  # Eccentricity of signal 
     m1,  # Binary 1 mass in kg
     m2, # Binary 2 mass in kg
-    t #years
+    t, #years
+    experiment="LISA"
     ): 
 
     # Return the comoving distance at which a binary system signal
@@ -444,6 +460,6 @@ def roffmSNR8(
     return (
         (r/8.)
         * ((10.**6) * ed.pc_in_meters)
-        * ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds)
+        * ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds, experiment)
     )
 

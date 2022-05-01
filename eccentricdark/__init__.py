@@ -91,7 +91,8 @@ from .snr import (
     SnSn, 
     SnOmn,
     SnGal,
-    SnLISAdefault
+    SnLISAdefault, 
+    SnDECIGOdefault
 )
 from .world import (
     World, 
