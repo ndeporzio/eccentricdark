@@ -239,7 +239,7 @@ def BBHevolve(                          #Fast
     t0=(0.*ed.year_in_seconds), 
     tf=(10.*ed.year_in_seconds), 
     dt=ed.dtevolve,
-    evolve_factor = 0.01, 
+    evolve_factor = 0.001, 
     verbose=0
 ):
 
@@ -249,6 +249,7 @@ def BBHevolve(                          #Fast
         tmerge = 1.0*ed.year_in_seconds
 
     dt = tmerge/1.0e2
+    #dt = (1.0e-1)*ed.year_in_seconds
 
     m = m1 + m2
     merger = None
@@ -289,11 +290,16 @@ def BBHevolve(                          #Fast
             fp[N] = ed.fpeak(m1, m2, a[N], e[N])
 
             converge_test = ((a[N-1] - a[N])/a[N-1]) #this ordering to keep quantity positive
+            converge_test2 = ((fp[N] - fp[N-1])/fp[N-1]) 
 
             if (converge_test>evolve_factor): #too large of a change in a[t]
                 if (verbose>0): 
                     print("\t Fail: ", converge_test)
-                dt = 0.5*dt
+                dt = 0.99*dt
+            elif (converge_test2>evolve_factor): #too large of a change in fp[t]
+                if (verbose>0):
+                    print("\t Fail: ", converge_test)
+                dt = 0.99*dt
             else: #good step, continue to next index
                 if (verbose>0): 
                     print("a = ", a[N], ", Rs = ", Rs)
@@ -312,7 +318,14 @@ def BBHevolve(                          #Fast
         np.array(fp).flatten()
     ]    
 
-def fpr(fp0, e0, m1, m2, ainterp=None, einterp=None): 
+def fpr(
+    fp0, 
+    e0, 
+    m1, # in kg
+    m2, # in kg
+    ainterp=None, 
+    einterp=None
+): 
 
     if e0==1.:
         print("ERROR in fpr function. Blows up for e=1!")
@@ -340,36 +353,47 @@ def fpr(fp0, e0, m1, m2, ainterp=None, einterp=None):
     
     return val 
 
-def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einterp=None,
+def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einterp=None, finterp=None,
     experiment="LISA"): #Fast 
 
-    if ((ainterp==None) or (einterp==None)):
+    if ((ainterp==None) or (einterp==None) or (finterp==None)):
         BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tf)
         t = BBHsol[0]
         a = BBHsol[1]
         e = BBHsol[2]
         merger = BBHsol[3]
-    
+        merger_idx = BBHsol[4]
+        f = BBHsol[5]    
+
         ainterp = scipy.interpolate.interp1d(t, a)
         einterp = scipy.interpolate.interp1d(t, e)
-
-    fpr = ed.fpr(fp0, e0, m1, m2, ainterp, einterp)
+        finterp = scipy.interpolate.interp1d(t, f)
+    
+    #fpr = ed.fpr(fp0, e0, m1, m2, ainterp, einterp)
 
     if experiment=="LISA":
         val = (
             lambda t : (
-                np.power(np.pi * fpr(t), 4./3.)
+                #np.power(np.pi * fpr(t), 4./3.)
+                np.power(np.pi * finterp(t), 4./3.)
                 * np.power(1. - einterp(t), 3./2.)
-                * (1./ed.SnLISAdefault(fpr(t)))
+                #*(1./2.32024693e-41) #LISA hn,min 
+                #*(1./6.7963438e-49) #DECIGO hn,min
+                #* (1./ed.SnLISAdefault(fpr(t)))
+                * (1./ed.SnLISAdefault(finterp(t)))
             )
         )
     elif experiment=="DECIGO":
         try: 
             val = (
                 lambda t : (
-                    np.power(np.pi * fpr(t), 4./3.)
+                    #np.power(np.pi * fpr(t), 4./3.)
+                    np.power(np.pi * finterp(t), 4./3.)
                     * np.power(1. - einterp(t), 3./2.)
-                    * (1./ed.SnDECIGOdefault(fpr(t)))
+                    #*(1./2.32024693e-41) #LISA hn,min 
+                    #*(1./6.7963438e-49) #DECIGO hn,min
+                    #* (1./ed.SnDECIGOdefault(fpr(t)))
+                    * (1./ed.SnDECIGOdefault(finterp(t)))
                 )
             )
         except: 
@@ -380,8 +404,8 @@ def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einter
 def snrintsol(
     fp0, # signal frequency in detector
     e0, # signal eccentricity in detector
-    m1, # binary mass 1 in Msun
-    m2, # binary mass 2 in Msun 
+    m1, # binary mass 1 in kg
+    m2, # binary mass 2 in kg 
     ttoday, # observation time in seconds 
     experiment="LISA"
 ): #Slow
@@ -391,12 +415,15 @@ def snrintsol(
     a = BBHsol[1]
     e = BBHsol[2]
     merger = BBHsol[3]
+    merger_idx = BBHsol[4]
+    f = BBHsol[5]
 
     if (len(t)<2): 
         return 0. 
     else: 
         ainterp = scipy.interpolate.interp1d(t, a)
         einterp = scipy.interpolate.interp1d(t, e)
+        finterp = scipy.interpolate.interp1d(t, f) 
     
         if (merger==None): 
             tf = ttoday 
@@ -413,10 +440,14 @@ def snrintsol(
         while t[-1]<tf: 
             N=len(t)
             t.append(t[N-1]+dt[N-1]) 
-            solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, experiment)(t[N]))
+            solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, finterp, experiment)(t[N]))
             sol.append(sol[N-1] + solp[N]*dt[N-1])
-            
+            if (dt[N-1] < 0.9*dt[0]): 
+                return sol[-1]
+        
+        #return sol[int(0.9*len(sol))]
         return sol[-1]
+        #return (t, solp, sol) 
 
 
 def SNR_LISA(

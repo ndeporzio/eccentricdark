@@ -75,7 +75,7 @@ def SnGal(fp, NModel, AModel):
             return 0. 
 
 def SnLISAdefault(fp): 
-    return (ed.SnLISA(fp, "N2", "A5") + ed.SnGal(fp, "N2", "A5"))
+    return ed.SnLISA(fp, "N2", "A5") + ed.SnGal(fp, "N2", "A5")
 
 def SnDECIGOdefault(fp):
     fp_vals = np.array([2.14350692e-03, 2.43759044e-03, 2.77202145e-03, 3.08550647e-03,
