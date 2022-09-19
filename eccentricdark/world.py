@@ -277,19 +277,20 @@ class World:
                 t
             )/((10.**6)*ed.pc_in_meters)
 
-    def initialize_dndfp(self): 
+    def initialize_fp(self, fpmin_forced=1.0e-9): 
         self.fp = [0]*(len(self.mc_values))
     
         for mc_idx, mc_val in enumerate(self.mc_values):
-            self.fp[mc_idx] = ed.dndfp_sampler(
+            self.fp[mc_idx] = ed.dtdfp_sampler(
                 mc_val, 
                 self.e_of_fp_interp[mc_idx], 
-                self.fp_min[mc_idx], 
-                self.fp_max[mc_idx], 
+                max(self.fp_min[mc_idx], fpmin_forced), 
+                #self.fp_max[mc_idx],
+                10.,  
                 'log'
             ) 
 
-    def solve_theta(self, e_cut):
+    def solve_theta(self, e_cut, verbose=0):
         self.e_cut = e_cut
         self.theta_cut = [0]*(len(self.mc_values))
         self.fp_cut = [0]*(len(self.mc_values))
@@ -297,51 +298,81 @@ class World:
         for mc_idx, mc_val in enumerate(self.mc_values): 
             self.fp_cut[mc_idx] = max(self.fp_of_e_interp[mc_idx](e_cut), self.fp_min[mc_idx])
 
-            self.theta_cut[mc_idx] = (lambda fp, mc_idx=mc_idx: (
-                0. if (fp < self.fp_cut[mc_idx]) else (
-                0. if (self.r_of_SNR8[mc_idx](fp) < self.chi_values[mc_idx]) else
-                1.
-                )
-            ))
+            #self.theta_cut[mc_idx] = (lambda fp, mc_idx=mc_idx: (
+            #    0. if (fp < self.fp_cut[mc_idx]) else (
+            #    0. if (self.r_of_SNR8[mc_idx](fp) < self.chi_values[mc_idx]) else
+            #    1.
+            #    )
+            #))
 
-    def count_N(self, log10fmin, log10fmax, binary_subset_count=None): 
-        self.N_counts = np.zeros(len(self.mc_values))
+            rsnr8 = self.r_of_SNR8[mc_idx](self.fp[mc_idx])
 
-        if (binary_subset_count==None): 
-            nmax = len(self.mc_values)-1
-        else: 
-            nmax = int(binary_subset_count) 
-
-        for mc_idx, mc_val in enumerate(self.mc_values[0:nmax]):
-            if (log10fmax < np.log10(self.fp_cut[mc_idx])):
-                self.N_counts[mc_idx]=0.
+            if (self.fp[mc_idx]<self.fp_cut[mc_idx]): 
+                self.theta_cut[mc_idx]=0
+            elif (rsnr8 < self.chi_values[mc_idx]):
+                self.theta_cut[mc_idx]=0
             else: 
-                integrand = lambda log10fp, mc_idx=mc_idx: (
-                    ed.dtdfp(
-                        self.mc_values[mc_idx], 
-                        np.power(10., log10fp), 
-                        self.e_of_fp_interp[mc_idx](np.power(10., log10fp))
-                    ) 
-                    * self.theta_cut[mc_idx](np.power(10., log10fp))
-                )
+                self.theta_cut[mc_idx]=1
+            
+            if (verbose>0): 
+                print("Binary "+f"{mc_idx:d}"+"\t" 
+                +f"{self.fp[mc_idx]:.3e}"+"\t"
+                +f"{self.fp_cut[mc_idx]:.3e}"+"\t"
+                +f"{rsnr8:.2f}"+"\t"
+                +f"{self.chi_values[mc_idx]:.2f}"+"\t"
+                +f"{self.theta_cut[mc_idx]:d}")
+
+    #def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):
+    #    totalcount = 0.
+    #    for mc_idx, mc_val in enumerate(self.mc_values[0:Max_N_binaries]):
+    #        integrand = lambda log10fp: (
+    #            1.
+    #            * np.power(np.power(10., log10fp), -11./3.)
+    #            / np.power(np.power(10., -1.5), -11./3.)
+    #            * ed.F_script(self.e_of_fp_interp[mc_idx](np.power(10., log10fp)))
+    #            /4.383
+    #        )
+    #        integral = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
+    #        counts = integral * self.theta_cut[mc_idx](np.power(10., log10fmin))
+    #        totalcount += counts
+    #        #print(integral, ", ", counts, ", ", totalcount)
+    #    return totalcount
+
+    #def count_N(self, log10fmin, log10fmax, binary_subset_count=None): 
+    #    self.N_counts = np.zeros(len(self.mc_values))
+
+    #    if (binary_subset_count==None): 
+    #        nmax = len(self.mc_values)-1
+    #    else: 
+    #        nmax = int(binary_subset_count) 
+
+    #    for mc_idx, mc_val in enumerate(self.mc_values[0:nmax]):
+    #        if (log10fmax < np.log10(self.fp_cut[mc_idx])):
+    #            self.N_counts[mc_idx]=0.
+    #        else: 
+    #            integrand = lambda log10fp, mc_idx=mc_idx: (
+    #                ed.dtdfp(
+    #                    self.mc_values[mc_idx], 
+    #                    np.power(10., log10fp), 
+    #                    self.e_of_fp_interp[mc_idx](np.power(10., log10fp))
+    #                ) 
+    #                * self.theta_cut[mc_idx](np.power(10., log10fp))
+    #            )
 
 
-                self.N_counts[mc_idx] = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
-                print("... ", self.N_counts[mc_idx], " for log10fpmin = ", log10fmin)            
+    #            self.N_counts[mc_idx] = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
+    #            print("... ", self.N_counts[mc_idx], " for log10fpmin = ", log10fmin)            
 
-    def count_N2(self, log10fmin, log10fmax): 
-        self.N_counts = np.zeros(len(self.mc_values))
+    def count_N(self, log10fmin, log10fmax): 
+        self.N_counts = 0
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
             log10fp = np.log10(self.fp[mc_idx])
 
             if ((log10fp > log10fmin) and (log10fp < log10fmax)):
-                count = self.theta_cut[mc_idx](np.power(10., log10fp))
-                #print("fp in observation window. Count = ", count) 
-                self.N_counts[mc_idx] = count
+                self.N_counts += self.theta_cut[mc_idx]
 
-        total = np.sum(self.N_counts)
-        return total 
+        return self.N_counts 
 
     def save(
         self, 
@@ -382,21 +413,6 @@ class World:
 
         np.savetxt(filepath, data, header=header_text, comments='#')
 
-    #def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):
-    #    totalcount = 0.
-    #    for mc_idx, mc_val in enumerate(self.mc_values[0:Max_N_binaries]):
-    #        integrand = lambda log10fp: (
-    #            1.
-    #            * np.power(np.power(10., log10fp), -11./3.)
-    #            / np.power(np.power(10., -1.5), -11./3.)
-    #            * ed.F_script(self.e_of_fp_interp[mc_idx](np.power(10., log10fp)))
-    #            /4.383
-    #        )
-    #        integral = scipy.integrate.quad(integrand, log10fmin, log10fmax)[0]
-    #        counts = integral * self.theta_cut[mc_idx](np.power(10., log10fmin))
-    #        totalcount += counts
-    #        #print(integral, ", ", counts, ", ", totalcount)
-    #    return totalcount
 
 def load_world(filepath): 
     header_text = []

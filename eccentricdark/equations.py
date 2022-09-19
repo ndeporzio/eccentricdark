@@ -44,7 +44,7 @@ def e_to_fp_interpolator(
 
     bin_count = ed.e_bin_count_default
 
-    e_interp_table = np.linspace(0.+e_offset, 1.-e_offset, bin_count)
+    e_interp_table = np.geomspace(0.+e_offset, 1.-e_offset, bin_count)
     H_interp_table = H_script(e_interp_table)
     fp_interp_table = (H_script(e_interp_table)/H_script(e_star))*fp_star
 
@@ -270,8 +270,8 @@ def BBHevolve(                          #Fast
     ep.append(0)
 
     N = 1
-    #Rs = (6.*ed.G*m/(ed.c**2)) 
-    Rs = (2.*ed.G*m/(ed.c**2)) 
+    Rs = (6.*ed.G*m/(ed.c**2)) 
+    #Rs = (2.*ed.G*m/(ed.c**2)) 
     while (a[N-1] > Rs):  
         t.append(0)
         a.append(0)
@@ -295,11 +295,11 @@ def BBHevolve(                          #Fast
             if (converge_test>evolve_factor): #too large of a change in a[t]
                 if (verbose>0): 
                     print("\t Fail: ", converge_test)
-                dt = 0.99*dt
+                dt = ed.dt_rescale*dt
             elif (converge_test2>evolve_factor): #too large of a change in fp[t]
                 if (verbose>0):
                     print("\t Fail: ", converge_test)
-                dt = 0.99*dt
+                dt = ed.dt_rescale*dt
             else: #good step, continue to next index
                 if (verbose>0): 
                     print("a = ", a[N], ", Rs = ", Rs)
@@ -442,7 +442,7 @@ def snrintsol(
             t.append(t[N-1]+dt[N-1]) 
             solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, finterp, experiment)(t[N]))
             sol.append(sol[N-1] + solp[N]*dt[N-1])
-            if (dt[N-1] < 0.9*dt[0]): 
+            if (dt[N-1] < ed.time_integral_cutoff_factor*dt[0]): 
                 return sol[-1]
         
         #return sol[int(0.9*len(sol))]

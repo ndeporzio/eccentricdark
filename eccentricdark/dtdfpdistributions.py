@@ -3,7 +3,7 @@ import scipy.stats
 import numpy as np
 import eccentricdark as ed
 
-def dndfp_sampler(
+def dtdfp_sampler(
     mc, 
     e_of_fp, 
     fpmin, 

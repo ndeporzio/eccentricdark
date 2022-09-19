@@ -26,6 +26,8 @@ from .constants import (
     Omega_lambda,
     gamma, 
     dtevolve,
+    dt_rescale, 
+    time_integral_cutoff_factor,
     invcdf_density_factor,
     e_interp_offset_default, 
     e_bin_count_default,
@@ -39,8 +41,8 @@ from .cosmology import (
     comoving_volume, 
     redshift_solver
 )
-from .dndfpdistributions import(
-    dndfp_sampler
+from .dtdfpdistributions import(
+    dtdfp_sampler
 )
 from .eccentricitydistributions import (
     estar_sampler, 
