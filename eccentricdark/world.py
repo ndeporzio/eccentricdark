@@ -252,6 +252,7 @@ class World:
                 if (mc_idx%10==0):
                     print("Solving ", mc_idx, "/", len(self.mc_values)-1, " ...", end="")
                     print("\r", end="")
+                    
                 self.fp_min[mc_idx] = self.fp_min_of_estar_interp(self.estar[mc_idx])
                 self.fp_max[mc_idx] = self.fp_max_of_estar_interp(self.estar[mc_idx])
                 self.fp_of_e_interp[mc_idx] = lambda e, mc_idx=mc_idx: self.fp_of_e_for_estar_interp(
@@ -314,10 +315,11 @@ class World:
             else: 
                 self.theta_cut[mc_idx]=1
             
+            
             if (verbose>0): 
                 print("Binary "+f"{mc_idx:d}"+"\t" 
                 +f"{self.fp[mc_idx]:.3e}"+"\t"
-                +f"{self.fp_cut[mc_idx]:.3e}"+"\t"
+#                +f"{self.fp_cut[mc_idx]:.3e}"+"\t"
                 +f"{rsnr8:.2f}"+"\t"
                 +f"{self.chi_values[mc_idx]:.2f}"+"\t"
                 +f"{self.theta_cut[mc_idx]:d}")
@@ -367,9 +369,9 @@ class World:
         self.N_counts = 0
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
-            log10fp = np.log10(self.fp[mc_idx])
+            #log10fp = np.log10(self.fp[mc_idx])
 
-            if ((log10fp > log10fmin) and (log10fp < log10fmax)):
+            if ((self.fp[mc_idx] > log10fmin) and (self.fp[mc_idx] < log10fmax)):
                 self.N_counts += self.theta_cut[mc_idx]
 
         return self.N_counts 
