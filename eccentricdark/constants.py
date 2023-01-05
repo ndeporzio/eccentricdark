@@ -23,7 +23,7 @@ gamma = 1.1954 # 1907.02283
 dtevolve = ((1.0)*year_in_seconds)
 dt_rescale = 0.99 #factor to multiply dt by when a[t] or fp[t] begin to change to quickly
 time_integral_cutoff_factor = 0.2 #when dt step equals this factor times initial dt, return value of SNR up to this point. Purpose is to cutoff the near merger region when dt gets very small and integrand gets very large and we're adding the produce of small and large numbers. 
-invcdf_density_factor = 1000
+invcdf_density_factor = 1000000
 
 e_interp_offset_default = 1.0e-9
 # Can't interpolate e[fp] exactly at e=0 and e=1

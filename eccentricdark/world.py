@@ -296,6 +296,8 @@ class World:
         self.theta_cut = [0]*(len(self.mc_values))
         self.fp_cut = [0]*(len(self.mc_values))
 
+        print(np.log10(self.fp))
+
         for mc_idx, mc_val in enumerate(self.mc_values): 
             self.fp_cut[mc_idx] = max(self.fp_of_e_interp[mc_idx](e_cut), self.fp_min[mc_idx])
 
@@ -318,11 +320,12 @@ class World:
             
             if (verbose>0): 
                 print("Binary "+f"{mc_idx:d}"+"\t" 
-                +f"{self.fp[mc_idx]:.3e}"+"\t"
-#                +f"{self.fp_cut[mc_idx]:.3e}"+"\t"
+                +f"{np.log10(self.fp[mc_idx]):.3e}"+"\t"
+                +f"{np.log10(self.fp_cut[mc_idx]):.3e}"+"\t"
                 +f"{rsnr8:.2f}"+"\t"
                 +f"{self.chi_values[mc_idx]:.2f}"+"\t"
                 +f"{self.theta_cut[mc_idx]:d}")
+
 
     #def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):
     #    totalcount = 0.

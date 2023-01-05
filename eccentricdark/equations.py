@@ -2,6 +2,9 @@ import eccentricdark as ed
 import numpy as np
 import scipy
 from scipy import interpolate
+import matplotlib.pyplot as plt
+
+SNRVal = 8
 
 def m_chirp(m1, m2): 
     if ((m1==0) or (m2==0)): 
@@ -243,13 +246,15 @@ def BBHevolve(                          #Fast
     verbose=0
 ):
 
+    #print('BBHevolve params', fp0, e0, m1, m2, t0, tf)
+    
     try: 
         tmerge = ed.tmerge(fp0, e0, m1, m2)
-    except: 
+    except:
+        print('tmerge blew up')
         tmerge = 1.0*ed.year_in_seconds
 
-    dt = tmerge/1.0e2
-    #dt = (1.0e-1)*ed.year_in_seconds
+    dt = tmerge/1.0e3
 
     m = m1 + m2
     merger = None
@@ -309,6 +314,8 @@ def BBHevolve(                          #Fast
     merger = t[-1]
     merger_idx = (len(t)-1)
     
+    #print('BBHevolve Return', t[-1], a[-1], e[-1])
+       
     return [
         np.array(t).flatten(), 
         np.array(a).flatten(), 
@@ -407,7 +414,8 @@ def snrintsol(
     m1, # binary mass 1 in kg
     m2, # binary mass 2 in kg 
     ttoday, # observation time in seconds 
-    experiment="LISA"
+    experiment="LISA",
+    diagnose=False
 ): #Slow
      
     BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
@@ -421,30 +429,42 @@ def snrintsol(
     if (len(t)<2): 
         return 0. 
     else: 
-        ainterp = scipy.interpolate.interp1d(t, a)
-        einterp = scipy.interpolate.interp1d(t, e)
-        finterp = scipy.interpolate.interp1d(t, f) 
+        ainterp = scipy.interpolate.interp1d(t, a, fill_value='extrapolate')
+        einterp = scipy.interpolate.interp1d(t, e, fill_value='extrapolate')
+        finterp = scipy.interpolate.interp1d(t, f, fill_value='extrapolate') 
     
         if (merger==None): 
             tf = ttoday 
         else: 
             tf = min(ttoday, merger) 
     
-        dt = np.diff(t)
+    
+       # print("Interpolation Range: ", np.amin(t), np.amax(t), tf)
+            
+        dt = 1e-3 * tf
         t0 = (0. * ed.year_in_seconds)
     
         t = [0.]
         solp = [0.]
         sol = [0.]
     
-        while t[-1]<tf: 
+        while t[-1]<tf-1: 
             N=len(t)
-            t.append(t[N-1]+dt[N-1]) 
+            #t.append(t[N-1]+dt[N-1])
+            t.append(t[N-1] + dt)
             solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, finterp, experiment)(t[N]))
-            sol.append(sol[N-1] + solp[N]*dt[N-1])
-            if (dt[N-1] < ed.time_integral_cutoff_factor*dt[0]): 
-                return sol[-1]
-        
+           # sol.append(sol[N-1] + solp[N]*dt[N-1])
+            sol.append(sol[N-1] + solp[N] * dt)
+            #if (dt[N-1] < ed.time_integral_cutoff_factor*dt[0]):
+             #   print('cutoff used')
+             #   return sol[-1]
+     
+           
+     
+        if(diagnose == True):
+            print("N: ", N, "tf: ", tf, "t0: ", t0, "dt: ", dt)
+            plt.plot(t, ainterp(t))   
+     
         #return sol[int(0.9*len(sol))]
         return sol[-1]
         #return (t, solp, sol) 
@@ -463,13 +483,20 @@ def SNR_LISA(
     m = m1 + m2
     mu = ed.m_reduced(m1, m2) 
 
+    if(type(e0) != list):
+        e0_Arr = [e0]
+
+    else:
+        e0_Arr = e0
+
     val = np.sqrt(
         (2.*64./5.) 
         * np.power(ed.c, -8.) 
         * np.power(r, -2.) 
         * np.power(ed.G * np.power(mu, 3./5.) * np.power(m, 2./5.), 10./3.)
-        * ed.snrintsol(fp0, e0, m1, m2, ttoday, experiment)
+        * ed.snrintsol(fp0, e0_Arr[0], m1, m2, ttoday, experiment)
     )
+
 
     return val 
 
@@ -488,8 +515,12 @@ def roffmSNR8(
     # with specified masses, signal eccentricity, signal peak 
     # frequency and observation time can be measured with SNR>8 
 
+    #print('SNR', ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds, experiment))
+    #print('Params')
+    #print(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds)
+
     return (
-        (r/8.)
+        (r/SNRVal)
         * ((10.**6) * ed.pc_in_meters)
         * ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds, experiment)
     )
