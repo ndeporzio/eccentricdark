@@ -9,7 +9,7 @@ def generate_invcdf(pdf, xmin, xmax, xscale):
 
     #calculate cdf
     if xscale=='log':
-        xvals = np.logspace(np.log10(xmin), np.log10(10, xmax), ed.invcdf_density_factor)
+        xvals = np.logspace(np.log10(xmin), np.log10(xmax), ed.invcdf_density_factor)
         xmidpoints = (xvals[1:] + xvals[:-1]) / 2.
         dxvals = np.diff(xvals)
 

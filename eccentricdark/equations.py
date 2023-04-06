@@ -4,7 +4,6 @@ import scipy
 from scipy import interpolate
 import matplotlib.pyplot as plt
 
-SNRVal = 8
 
 def m_chirp(m1, m2): 
     if ((m1==0) or (m2==0)): 
@@ -415,7 +414,7 @@ def snrintsol(
     m2, # binary mass 2 in kg 
     ttoday, # observation time in seconds 
     experiment="LISA",
-    diagnose=False
+    diagnose=True
 ): #Slow
      
     BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
@@ -429,26 +428,27 @@ def snrintsol(
     if (len(t)<2): 
         return 0. 
     else: 
-        ainterp = scipy.interpolate.interp1d(t, a, fill_value='extrapolate')
-        einterp = scipy.interpolate.interp1d(t, e, fill_value='extrapolate')
-        finterp = scipy.interpolate.interp1d(t, f, fill_value='extrapolate') 
+        ainterp = scipy.interpolate.interp1d(t, a)
+        einterp = scipy.interpolate.interp1d(t, e)
+        finterp = scipy.interpolate.interp1d(t, f) 
     
         if (merger==None): 
             tf = ttoday 
         else: 
             tf = min(ttoday, merger) 
     
-    
-       # print("Interpolation Range: ", np.amin(t), np.amax(t), tf)
-            
-        dt = 1e-3 * tf
-        t0 = (0. * ed.year_in_seconds)
+        if (diagnose==True): 
+            print("Interpolation Range (Tmin, Tmax, Tf, Nt): ", np.amin(t), np.amax(t), tf, len(t))
+        
     
         t = [0.]
         solp = [0.]
         sol = [0.]
+
+        dt = np.min(1.0e-3*tf, np.min(np.diff(t)))
+        t0 = (0. * ed.year_in_seconds)
     
-        while t[-1]<tf-1: 
+        while t[-1]<tf: 
             N=len(t)
             #t.append(t[N-1]+dt[N-1])
             t.append(t[N-1] + dt)
@@ -518,6 +518,8 @@ def roffmSNR8(
     #print('SNR', ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds, experiment))
     #print('Params')
     #print(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds)
+
+    SNRVal = 8.
 
     return (
         (r/SNRVal)

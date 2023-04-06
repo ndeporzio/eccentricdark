@@ -372,9 +372,9 @@ class World:
         self.N_counts = 0
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
-            #log10fp = np.log10(self.fp[mc_idx])
+            log10fp = np.log10(self.fp[mc_idx])
 
-            if ((self.fp[mc_idx] > log10fmin) and (self.fp[mc_idx] < log10fmax)):
+            if ((log10fp > log10fmin) and (log10fp < log10fmax)):
                 self.N_counts += self.theta_cut[mc_idx]
 
         return self.N_counts 

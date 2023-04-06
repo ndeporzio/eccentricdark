@@ -40,7 +40,7 @@ counts_isolated = np.zeros((11,))
 
 
 for i in range(len(fpbins)-1):
-    counts_isolated[i] = world_isolated.count_N(fpbins[i], fpbins[i+1])
+    counts_isolated[i] = world_isolated.count_N(np.log10(fpbins[i]), np.log10(fpbins[i+1])) 
 
 world_isolated.save('./Isolated_World.txt')
     
