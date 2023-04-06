@@ -248,7 +248,7 @@ def BBHevolve(                          #Fast
     except: 
         tmerge = 1.0*ed.year_in_seconds
 
-    dt = tmerge/1.0e2
+    dt = tmerge/1.0e3
     #dt = (1.0e-1)*ed.year_in_seconds
 
     m = m1 + m2

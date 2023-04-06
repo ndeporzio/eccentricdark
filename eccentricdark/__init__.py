@@ -105,7 +105,8 @@ print(
     "You have loaded the eccentricdark - a Python package for modeling"
     + " experimental sensitivity to black hole binary formation "
     + " channels through eccentricity observations... \n"
-    + "See 'Tutorial.ipynb' for use instructions..." 
+    + "See 'Tutorial.ipynb' for use instructions... \n"
+    + "Version dated 2/13/23." 
 )
 
 
