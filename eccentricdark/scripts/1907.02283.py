@@ -128,18 +128,19 @@ if imbh==True:
 
 #Check LISA SNR - Figure 1 
 if fig1==True:
+    print("Generating 1907.02283 Figure 1...") 
     fp_table = np.logspace(-4, 2, 300)
     estar_table = np.array([1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6])
 
-    e_of_fp = np.array([[
-        ed.e_solver(
-            f_p=fpval,
-            fp_star=10., #Units: Hz 
+    e_of_fp = np.zeros((len(estar_table), len(fp_table)))
+    for estaridx, estarval in enumerate(estar_table):
+        print("\tEvaluating e(fp) for estar = ", estarval)
+        e_of_fp_interp = ed.e_to_fp_interpolator(
+            fp_star=ed.fp_star_default,
             e_star=estarval
-        )
-        for fpidx, fpval in enumerate(fp_table)]
-        for estaridx, estarval in enumerate(estar_table)]
-    )
+        )[3] 
+        for fpidx, fpval in enumerate(fp_table): 
+            e_of_fp[estaridx, fpidx] = e_of_fp_interp(fpval)
 
     colors=sns.dark_palette("#69d", len(estar_table), reverse=False)
 
@@ -156,7 +157,6 @@ if fig1==True:
     plt.yscale('log')
     plt.xscale('log')
     plt.grid(axis='both', which='both')
-
 
     ymin=1.0e-3
     ymax=2.0
@@ -216,7 +216,7 @@ if fig1==True:
     for e_idx, e_val in enumerate(estar_merge):
         fpmin, fpmax, fp_of_e, e_of_fp = ed.e_to_fp_interpolator(fp_star=ed.fp_star_default, e_star=e_val)
         
-        print("Building merge line: ", e_idx+1)
+        print("\tBuilding merge time : ", e_idx+1, " of ", len(estar_merge))
         tmerge_1month = lambda fp: ed.tmerge(fp, e_of_fp(fp), 30.*ed.msun_in_kg, 30.*ed.msun_in_kg)-(1./12.)*ed.year_in_seconds
         tmerge_12month = lambda fp: ed.tmerge(fp, e_of_fp(fp), 30.*ed.msun_in_kg, 30.*ed.msun_in_kg)-(1.)*ed.year_in_seconds
         tmerge_120month = lambda fp: ed.tmerge(fp, e_of_fp(fp), 30.*ed.msun_in_kg, 30.*ed.msun_in_kg)-(10.)*ed.year_in_seconds
@@ -238,20 +238,17 @@ if fig1==True:
         t120month[e_idx, 0] = fp_120month
         t1200month[e_idx, 0] = fp_1200month
     
-        t1month[e_idx, 1] = ed.e_solver(fp_1month, ed.fp_star_default, e_val)
-        t12month[e_idx, 1] = ed.e_solver(fp_12month, ed.fp_star_default, e_val)
-        t120month[e_idx, 1] = ed.e_solver(fp_120month, ed.fp_star_default, e_val)
-        t1200month[e_idx, 1] = ed.e_solver(fp_1200month, ed.fp_star_default, e_val)
+        t1month[e_idx, 1] = e_of_fp(fp_1month)
+        t12month[e_idx, 1] = e_of_fp(fp_12month)
+        t120month[e_idx, 1] = e_of_fp(fp_120month)
+        t1200month[e_idx, 1] = e_of_fp(fp_1200month)
 
 
     colors=sns.color_palette("Reds", 4)
-    plt.scatter(t1month[:,0], t1month[:,1], color=colors[0], label="1 month") 
-    plt.scatter(t12month[:,0], t12month[:,1], color=colors[1], label="1 year") 
-    plt.scatter(t120month[:,0], t120month[:,1], color=colors[2], label="10 year") 
-    plt.scatter(t1200month[:,0], t1200month[:,1], color=colors[3], label="100 year") 
-
-    print(t1200month[:,0])
-    print(t1200month[:,1]) 
+    plt.plot(t1month[:,0], t1month[:,1], color=colors[0], label="1 month", linestyle='dashed') 
+    plt.plot(t12month[:,0], t12month[:,1], color=colors[1], label="1 year", linestyle='dashed') 
+    plt.plot(t120month[:,0], t120month[:,1], color=colors[2], label="10 year", linestyle='dashed') 
+    plt.plot(t1200month[:,0], t1200month[:,1], color=colors[3], label="100 year", linestyle='dashed') 
 
     plt.legend(fontsize=20)
     plt.savefig(os.path.join(savepath, 'Figure_1.png'))
