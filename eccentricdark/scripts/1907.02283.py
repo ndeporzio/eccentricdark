@@ -1,19 +1,54 @@
 import copy 
 import eccentricdark as ed
+import matplotlib.font_manager
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scipy 
 import seaborn as sns
 import sys
+from matplotlib.patches import Rectangle
+from matplotlib.lines import Line2D
+from matplotlib import rc
 
-sns.set()
+#sns.set()
+rc('font', **{'serif': ['Computer Modern']})
+rc('text', usetex=True)
+matplotlib.rcParams['text.latex.preamble'] = r'\boldmath'
+matplotlib.rcParams.update({
+    "font.weight" : "bold",
+    "font.size" : 30,
+    "axes.labelsize" : 60,
+    "axes.labelpad" : 10.0,
+    "xtick.labelsize" : 30,
+    "xtick.major.size" : 30,
+    "xtick.major.width" : 3,
+    "xtick.major.pad" : 15,
+    "xtick.minor.size" : 20,
+    "xtick.minor.width" : 2,
+    "xtick.direction" : "in",
+    "ytick.labelsize" : 30,
+    "ytick.major.size" : 30,
+    "ytick.major.width" : 3,
+    "ytick.major.pad" : 10,
+    "ytick.minor.size" : 20,
+    "ytick.minor.width" : 2,
+    "ytick.direction" : "in",
+    "legend.fontsize" : 60,
+    "figure.dpi" : 100,
+    "figure.figsize" : [30, 30],
+    "figure.constrained_layout.use" : True,
+    "figure.constrained_layout.wspace": 0.1,
+    "savefig.pad_inches" : 0.1
 
-fig1 = False 
+})
+
+imbh = False
+fig1 = True 
 fig2 = False 
 fig3 = False 
 fig4 = False
-extra1 = True
+extra1 = False
 extra2 = False 
 
 #Collect output directory 
@@ -23,8 +58,8 @@ else:
     savepath = sys.argv[1]
     print("\nSaving results to: ", savepath, "\n")
 
-#Check LISA SNR - Figure 1 
-if fig1==True:
+#I think this is from IMBH plots? 
+if imbh==True: 
     fp = np.logspace(-4, 1, 51)
     m = np.geomspace(1.0e1*ed.msun_in_kg, 1.0e6*ed.msun_in_kg, 6)
     y = np.array([[
@@ -89,6 +124,136 @@ if fig1==True:
     plt.title("LISA N2A5 Configuration Noise Curve", fontsize=20)
     plt.legend()
 
+    plt.savefig(os.path.join(savepath, 'Figure_1.png'))
+
+#Check LISA SNR - Figure 1 
+if fig1==True:
+    fp_table = np.logspace(-4, 2, 300)
+    estar_table = np.array([1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6])
+
+    e_of_fp = np.array([[
+        ed.e_solver(
+            f_p=fpval,
+            fp_star=10., #Units: Hz 
+            e_star=estarval
+        )
+        for fpidx, fpval in enumerate(fp_table)]
+        for estaridx, estarval in enumerate(estar_table)]
+    )
+
+    colors=sns.dark_palette("#69d", len(estar_table), reverse=False)
+
+    plt.figure(figsize=(15, 7.5))
+    plt.title("Fig. 1 in 1907.02283", fontsize=20)
+    plt.xlabel(r"$f_p$/Hz", fontsize=20)
+    plt.ylabel(r"$e$", fontsize=20)
+    for estaridx, estarval in enumerate(estar_table): 
+        plt.plot(fp_table, e_of_fp[estaridx, :], label=r"$e_*=$"+f'{estarval:.1e}', color=colors[estaridx])
+    plt.plot([1.0e-4, 1.0e2], [1., 1.], color='black', label=r"e=1.0")
+    plt.plot([1.0e-4, 1.0e2], [2.0e-3, 2.0e-3], color='black', alpha=0.2)
+    plt.xlim((1.0e-4, 1.0e2))
+    plt.ylim((1.0e-3, 2.))
+    plt.yscale('log')
+    plt.xscale('log')
+    plt.grid(axis='both', which='both')
+
+
+    ymin=1.0e-3
+    ymax=2.0
+    lisa_fmin=np.power(10., -2.6)
+    lisa_fmax=np.power(10., -1.6)
+    tian_fmin=np.power(10., -1.8)
+    tian_fmax=np.power(10., -0.8)
+    decigo_fmin=np.power(10., -1.0)
+    decigo_fmax=np.power(10., 1.0)
+    ligo_fmin=3.
+    ligo_fmax=200. 
+
+    ax = plt.gca()
+    lisa_rect = Rectangle(
+        (lisa_fmin, ymin), #Bottom-left corner
+        lisa_fmax-lisa_fmin, #Width
+        ymax-ymin, #Height
+        facecolor='grey',
+        alpha=0.2)
+    tian_rect = Rectangle(
+        (tian_fmin, ymin),
+        tian_fmax-tian_fmin,
+        ymax-ymin,
+        facecolor='green',
+        alpha=0.2
+    )
+    decigo_rect = Rectangle(
+        (decigo_fmin, ymin),
+        decigo_fmax-decigo_fmin,
+        ymax-ymin,
+        facecolor='blue',
+        alpha=0.2
+    )
+    ligo_rect = Rectangle(
+        (ligo_fmin, ymin),
+        ligo_fmax-ligo_fmin,
+        ymax-ymin,
+        facecolor='grey',
+        alpha=0.2
+    )
+    ax.add_patch(lisa_rect)
+    ax.add_patch(tian_rect)
+    ax.add_patch(decigo_rect)
+    ax.add_patch(ligo_rect)
+
+    plt.text(lisa_fmin, 3.0e-2, "LISA", rotation='vertical', fontsize=20)
+    plt.text(tian_fmin, 3.0e-2, "TianQin", rotation='vertical', fontsize=20)
+    plt.text(decigo_fmin, 3.0e-2, "DECIGO", rotation='vertical', fontsize=20)
+    plt.text(ligo_fmin, 3.0e-2, "LIGO", rotation='vertical', fontsize=20)
+
+    estar_merge = np.logspace(-8, -1, 50)
+    t1month = np.zeros((len(estar_merge), 2))
+    t12month = np.zeros((len(estar_merge), 2))
+    t120month = np.zeros((len(estar_merge), 2))
+    t1200month = np.zeros((len(estar_merge), 2))
+    
+    for e_idx, e_val in enumerate(estar_merge):
+        fpmin, fpmax, fp_of_e, e_of_fp = ed.e_to_fp_interpolator(fp_star=ed.fp_star_default, e_star=e_val)
+        
+        print("Building merge line: ", e_idx+1)
+        tmerge_1month = lambda fp: ed.tmerge(fp, e_of_fp(fp), 30.*ed.msun_in_kg, 30.*ed.msun_in_kg)-(1./12.)*ed.year_in_seconds
+        tmerge_12month = lambda fp: ed.tmerge(fp, e_of_fp(fp), 30.*ed.msun_in_kg, 30.*ed.msun_in_kg)-(1.)*ed.year_in_seconds
+        tmerge_120month = lambda fp: ed.tmerge(fp, e_of_fp(fp), 30.*ed.msun_in_kg, 30.*ed.msun_in_kg)-(10.)*ed.year_in_seconds
+        tmerge_1200month = lambda fp: ed.tmerge(fp, e_of_fp(fp), 30.*ed.msun_in_kg, 30.*ed.msun_in_kg)-(100.)*ed.year_in_seconds
+    
+        interp_lims = ed.e_to_fp_interpolator(fp_star=ed.fp_star_default, e_star=e_val)
+    
+        if (t1month[e_idx-1, 1] < (1.-1.0e-3)):
+            fp_1month = scipy.optimize.bisect(tmerge_1month, interp_lims[0], 1.0e0, xtol=1.0e-8, rtol=1.0e-8)
+        if (t12month[e_idx-1, 1] < (1.-1.0e-3)):
+            fp_12month = scipy.optimize.bisect(tmerge_12month, interp_lims[0], 1.0e0, xtol=1.0e-8, rtol=1.0e-8)   
+        if (t120month[e_idx-1, 1] < (1.-1.0e-3)):
+            fp_120month = scipy.optimize.bisect(tmerge_120month, interp_lims[0], 1.0e0, xtol=1.0e-8, rtol=1.0e-8)   
+        if (t1200month[e_idx-1, 1] < (1.-1.0e-3)):
+            fp_1200month = scipy.optimize.bisect(tmerge_1200month, interp_lims[0], 1.0e0, xtol=1.0e-8, rtol=1.0e-8)
+            
+        t1month[e_idx, 0] = fp_1month
+        t12month[e_idx, 0] = fp_12month
+        t120month[e_idx, 0] = fp_120month
+        t1200month[e_idx, 0] = fp_1200month
+    
+        t1month[e_idx, 1] = ed.e_solver(fp_1month, ed.fp_star_default, e_val)
+        t12month[e_idx, 1] = ed.e_solver(fp_12month, ed.fp_star_default, e_val)
+        t120month[e_idx, 1] = ed.e_solver(fp_120month, ed.fp_star_default, e_val)
+        t1200month[e_idx, 1] = ed.e_solver(fp_1200month, ed.fp_star_default, e_val)
+
+
+    colors=sns.color_palette("Reds", 4)
+    plt.scatter(t1month[:,0], t1month[:,1], color=colors[0], label="1 month") 
+    plt.scatter(t12month[:,0], t12month[:,1], color=colors[1], label="1 year") 
+    plt.scatter(t120month[:,0], t120month[:,1], color=colors[2], label="10 year") 
+    plt.scatter(t1200month[:,0], t1200month[:,1], color=colors[3], label="100 year") 
+
+    print(t1200month[:,0])
+    print(t1200month[:,1]) 
+
+    plt.legend(fontsize=20)
     plt.savefig(os.path.join(savepath, 'Figure_1.png'))
 
 
