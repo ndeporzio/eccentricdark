@@ -50,7 +50,7 @@ def e_to_fp_interpolator(
     fp_min = fp_interp_table[-1]
 
     fp_of_e_interp = interpolate.interp1d(e_interp_table, fp_interp_table)
-    e_of_fp_interp = interpolate.interp1d(fp_interp_table, e_interp_table) 
+    e_of_fp_interp = interpolate.interp1d(fp_interp_table, e_interp_table, bounds_error=False, fill_value=(1., 0.)) 
 
     return fp_min, fp_max, fp_of_e_interp, e_of_fp_interp 
 
@@ -205,7 +205,12 @@ def dedt(m1, m2, a, e): # equation 1b
     ) #CAUTION: Blows up for e=1
     return val
 
-def tmerge(fp, e, m1, m2):
+def tmerge(
+    fp, 
+    e, 
+    m1, #Units: kg
+    m2  #Units: kg 
+):
     m = m1 + m2
     mu = ed.m_reduced(m1, m2) 
 
@@ -220,7 +225,7 @@ def tmerge(fp, e, m1, m2):
         * np.power(1.0 - e**2 , 7./2.)
     ) #CAUTION: Blows up for e=1
     
-    return val 
+    return val #Units: seconds
 
 def afe(fp, e, m1, m2): # semi-major axis "a" as a function of "e, fp, m1, m2"
     if e==1.: 
