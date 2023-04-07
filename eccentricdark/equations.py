@@ -17,24 +17,20 @@ def m_reduced(m1, m2):
     else: 
         return ((m1*m2)/(m1+m2))
 
-#def G_script( # 1907.02283, eq 2
-#    e #Unitless
-#    ): 
-#    return (
-#        (np.power(e, 12./19.)/(1-np.power(e, 2.))) 
-#        * np.power(1. + (121./304.)*np.power(e, 2.), 870./2299.) 
-#    ) #Unitless
+def G_script( # 1907.02283, eq 2
+    e #Unitless
+    ): 
+    return (
+        (np.power(e, 12./19.)/(1-np.power(e, 2.))) 
+        * np.power(1. + (121./304.)*np.power(e, 2.), 870./2299.) 
+    ) #Unitless
 
 def H_script( # 1907.02283, eq 4
     e #Unitless
     ):
     return (
         np.power(1.+e, ed.gamma) 
-        * np.power(
-            np.power(e, 12./19.)
-            *np.power(1.+(121./304.)*np.power(e, 2.), 870./2299.)
-            , -3./2.
-        )
+        * np.power(ed.G_script(e)*(1.-np.power(e, 2.)), -3./2.)
     ) # Unitless
 
 
@@ -58,12 +54,14 @@ def e_to_fp_interpolator(
 
     return fp_min, fp_max, fp_of_e_interp, e_of_fp_interp 
 
+
 def e_solver(
     f_p,
     fp_star,
     e_star,
     ): # 1907.02283, eq 4
 
+    #NOTE: Typically better to use e_to_fp_interpolator
     e_offset = ed.e_interp_offset_default
     e_bin_count = ed.e_bin_count_default
 
@@ -83,6 +81,7 @@ def e_solver(
         solverfunc = lambda x: H_inv_interp_func(x)
         e_val = scipy.optimize.bisect(solverfunc, 0.+e_offset, 1.-e_offset)
         return e_val # Unitless
+
 
 def e_solver_2(
     fp,
@@ -253,6 +252,7 @@ def BBHevolve(                          #Fast
         print('tmerge blew up')
         tmerge = 1.0*ed.year_in_seconds
 
+    #CAUTION: May need to be smaller than this for merger time steps... 
     dt = tmerge/1.0e3
 
     m = m1 + m2

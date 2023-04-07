@@ -31,7 +31,8 @@ from .constants import (
     invcdf_density_factor,
     e_interp_offset_default, 
     e_bin_count_default,
-    lookup_bbh_evolution
+    lookup_bbh_evolution,
+    fp_star_default
 )
 from .cosmology import (
     Cosmology,
@@ -55,7 +56,7 @@ from .eccentricitydistributions import (
 from .equations import (
     m_chirp,
     m_reduced, 
-    #G_script, 
+    G_script, 
     H_script, 
     e_to_fp_interpolator,
     e_solver,
@@ -106,6 +107,7 @@ print(
     + " experimental sensitivity to black hole binary formation "
     + " channels through eccentricity observations... \n"
     + "See 'Tutorial.ipynb' for use instructions..." 
+    + "Version dated 04/06/23." 
 )
 
 

@@ -37,3 +37,5 @@ e_bin_count_default = int(1e6)
 # 0 and 1 to build interpolation table
 
 lookup_bbh_evolution = False
+
+fp_star_default = 10. #Frequency at which to define e* 
