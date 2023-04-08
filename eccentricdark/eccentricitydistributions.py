@@ -12,6 +12,7 @@ def estar_sampler(
     #should return the invcdf function for specified pdf 
 
     if estar_distribution=="fixed": 
+        # args = value distribution is fixed to 
         return np.vectorize(lambda x: args) 
 
     if estar_distribution=="loggaussian":
@@ -25,13 +26,8 @@ def estar_sampler(
             ed.multigauss, 
             np.power(10., ed.fieldData[:,0]),
             ed.fieldData[:,1]/max(ed.fieldData[:,1]),
-            [
-                -12.308577637842925,
-                -0.3000192097507729,
-                -0.02842041062114348,
-                -0.0024862991498544496,
-                0.23232375892104137
-            ])
+            [-12.4, -0.43, -0.10, -1.4e-2, 1.6e-6]
+        )
         pdf_unnormed = lambda estar : ed.multigauss(
             y = estar,
             u = fit1[0],
@@ -40,7 +36,6 @@ def estar_sampler(
             c = fit1[3],
             k = fit1[4]
         )
-
         return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-2, 'log'))
 
     if estar_distribution=="ejected": 
@@ -48,13 +43,8 @@ def estar_sampler(
             ed.multigauss, 
             np.power(10., ed.ejectedData[:,0]), 
             ed.ejectedData[:,1]/max(ed.ejectedData[:,1]),
-            [
-                -8.903606734106413, 
-                -0.21505957280762572, 
-                -0.05215442618559087, 
-                -0.005523661062693592, 
-                0.2504431992363881
-            ])
+            [-8.8, -2.1e-1, -5.0e-2, -5.2e-3, 9.1e-6]
+        )
         pdf_unnormed = lambda estar : ed.multigauss(
             y = estar, 
             u = fit1[0], 
@@ -63,7 +53,6 @@ def estar_sampler(
             c = fit1[3], 
             k = fit1[4]
         ) 
-
         return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-2, 'log'))
 
     if estar_distribution=="incluster": 
@@ -71,13 +60,8 @@ def estar_sampler(
             ed.multigauss, 
             np.power(10., ed.inclusterData[:,0]),
             ed.inclusterData[:,1]/max(ed.inclusterData[:,1]),
-            [
-                -7.1814548324724425,
-                -0.41160569016079956,
-                -0.13633206068723644,
-                -0.01848512571848316,
-                0.34149918878761343
-            ])
+            [-7.2, -3.9e-1, -1.2e-1, -1.7e-2, 1.6e-4]
+            )
         pdf_unnormed = lambda estar : ed.multigauss(
             y = estar,
             u = fit1[0],
@@ -86,7 +70,6 @@ def estar_sampler(
             c = fit1[3],
             k = fit1[4]
         )
-
         return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-1, 'log'))
 
     if estar_distribution=="galcenter": 
@@ -94,13 +77,8 @@ def estar_sampler(
             ed.multigauss, 
             np.power(10., ed.galcenterData[:,0]),
             ed.galcenterData[:,1]/max(ed.galcenterData[:,1]),
-            [
-                -8.670877869456227,
-                -1.4033086813787914,
-                -1.0852555343749364,
-                -0.3468739524658422,
-                0.06114451273864072 
-            ])
+            [-4.7, -5.5e-1, -1.8e-1, -1.8e-2, 1.0e-3]
+            )
         pdf_unnormed = lambda estar : ed.multigauss(
             y = estar,
             u = fit1[0],
@@ -109,7 +87,6 @@ def estar_sampler(
             c = fit1[3],
             k = fit1[4]
         )
-
         return np.vectorize(ed.generate_invcdf(pdf_unnormed, 1.0e-12, 1.0e-1, 'log'))
 
 fieldData = np.array([[-7.56450, 0.02073], [-7.50032, 0.04945], [-7.45449, 
