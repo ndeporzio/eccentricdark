@@ -44,8 +44,8 @@ matplotlib.rcParams.update({
 })
 
 imbh = False
-fig1 = True 
-fig2 = False 
+fig1 = False 
+fig2 = True 
 fig3 = False 
 fig4 = False
 extra1 = False
@@ -256,24 +256,22 @@ if fig1==True:
 
 # Check primordial distribution functions - Figure 2
 if fig2==True: 
-    nsample = 10000
+    plt.figure(figsize=(26.25, 7.5))
+
+    # Sample the True Distributions and Plot
+    nsample = 100000
+    edges = np.logspace(-7, -2, 51)
+
     isolated_sample = ed.estar_sampler("isolated")(np.random.random(nsample))
     ejected_sample = ed.estar_sampler("ejected")(np.random.random(nsample))
     incluster_sample = ed.estar_sampler("incluster")(np.random.random(nsample))
     galcenter_sample = ed.estar_sampler("galcenter")(np.random.random(nsample))
 
-    edges = np.logspace(-7, -2, 51)
     isolated_counts, bins = np.histogram(isolated_sample, edges)
     ejected_counts, bins = np.histogram(ejected_sample, edges)
     incluster_counts, bins = np.histogram(incluster_sample, edges)
     galcenter_counts, bins = np.histogram(galcenter_sample, edges)
 
-    isolated_interp = scipy.interpolate.interp1d(edges[0:-1], isolated_counts/max(isolated_counts))
-    ejected_interp = scipy.interpolate.interp1d(edges[0:-1], ejected_counts/max(ejected_counts))
-    incluster_interp = scipy.interpolate.interp1d(edges[0:-1], incluster_counts/max(incluster_counts))
-    galcenter_interp = scipy.interpolate.interp1d(edges[0:-1], galcenter_counts/max(galcenter_counts))
-
-    plt.figure(figsize=(26.25, 7.5))
     plt.hist(bins[:-1], bins, weights=isolated_counts/max(isolated_counts), 
         label=r'isolated', linewidth=2, histtype='stepfilled', color='grey', alpha=0.5)
     plt.hist(bins[:-1], bins, weights=ejected_counts/max(ejected_counts), 
@@ -282,6 +280,19 @@ if fig2==True:
         label=r'in-cluster', linewidth=2, histtype='stepfilled', color='purple', alpha=0.5)
     plt.hist(bins[:-1], bins, weights=galcenter_counts/max(galcenter_counts), 
         label=r'gal. center', linewidth=2, histtype='stepfilled', color='blue', alpha=0.5)
+
+    #Sample a gaussian and plot
+    def gauss(x, u=1.0e-3, sig=3.0e-4): 
+        return (1./(sig*np.sqrt(2.*np.pi)))*np.power(np.e, (-1./2.)*np.power((x-u)/sig, 2.))
+
+    gauss_sample = ed.generate_invcdf(gauss, 1.0e-4, 1.0e-2, 'log')(np.random.random(nsample))
+    gauss_counts, bins = np.histogram(gauss_sample, edges)
+    plt.hist(bins[:-1], bins, weights=gauss_counts/max(gauss_counts),
+        label=r'Gaussian', linewidth=2, histtype='stepfilled', color='green', alpha=0.5)    
+    plt.plot(np.logspace(-5, -2, 301), gauss(np.logspace(-5, -2, 301))/max(gauss(np.logspace(-5, -2, 301))), 
+        linestyle='dashed', color='green', linewidth=4)
+
+    # Plotting True Distributions
     plt.plot(np.power(10., ed.fieldData[:,0]), ed.fieldData[:,1]/max(ed.fieldData[:,1]), 
         linewidth=4, color="grey")
     plt.plot(np.power(10., ed.ejectedData[:,0]), ed.ejectedData[:,1]/max(ed.ejectedData[:,1]), 
@@ -290,44 +301,79 @@ if fig2==True:
         linewidth=4, color="purple")
     plt.plot(np.power(10., ed.galcenterData[:,0]), ed.galcenterData[:,1]/max(ed.galcenterData[:,1]), 
         linewidth=4, color="blue")
-    plt.plot(np.logspace(-7, -4, 31), ed.multigauss(
-            y = np.logspace(-7, -4, 31),
-            u = -1.24404586e+01,
-            a = -4.34697804e-01,
-            b = -1.01499373e-01,
-            c = -1.35644612e-02,
-            k = 1.66563843e-06
+
+
+    # Plotting Log-Normal Approximations to True Distributions
+    xplot = np.logspace(-7, -4, 200)
+    fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss,
+            np.power(10., ed.fieldData[:,0]),
+            ed.fieldData[:,1]/max(ed.fieldData[:,1]),
+            [-12.4, -0.43, -0.10, -1.4e-2, 1.6e-6]
+    )
+    plt.plot(xplot, ed.multigauss(
+            y = xplot,
+            u = fit1[0],
+            a = fit1[1],
+            b = fit1[2],
+            c = fit1[3],
+            k = fit1[4]
         ), color="grey", linestyle='dashed', linewidth=4)
-    plt.plot(np.logspace(-7, -3, 31), ed.multigauss(
-            y = np.logspace(-7, -3, 31),
-            u = -8.78221641e+00,
-            a = -2.09640376e-01,
-            b = -5.04274365e-02,
-            c = -5.23793259e-03,
-            k = 9.08204226e-06 
+
+    xplot = np.logspace(-7, -3, 200)
+    fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss,
+            np.power(10., ed.ejectedData[:,0]),
+            ed.ejectedData[:,1]/max(ed.ejectedData[:,1]),
+            [-8.8, -2.1e-1, -5.0e-2, -5.2e-3, 9.1e-6]
+    )
+    plt.plot(xplot, ed.multigauss(
+            y = xplot,
+            u = fit1[0],
+            a = fit1[1],
+            b = fit1[2],
+            c = fit1[3],
+            k = fit1[4]
         ), color="red", linestyle='dashed', linewidth=4)
-    plt.plot(np.logspace(-7, -2, 31), ed.multigauss(
-            y = np.logspace(-7, -2, 31),
-            u = -7.19800218e+00,
-            a = -3.87340001e-01,
-            b = -1.24883309e-01,
-            c = -1.69861077e-02,
-            k = 1.61038230e-04
+
+    xplot = np.logspace(-7, -2, 200)
+    fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss,
+            np.power(10., ed.inclusterData[:,0]),
+            ed.inclusterData[:,1]/max(ed.inclusterData[:,1]),
+            [-7.2, -3.9e-1, -1.2e-1, -1.7e-2, 1.6e-4]
+    )
+    plt.plot(xplot, ed.multigauss(
+            y = xplot,
+            u = fit1[0],
+            a = fit1[1],
+            b = fit1[2],
+            c = fit1[3],
+            k = fit1[4]
         ), color="purple", linestyle='dashed', linewidth=4)
-    plt.plot(np.logspace(-7, -2, 31), ed.multigauss(
-            y = np.logspace(-7, -2, 31),
-            u = -4.74123592e+00,
-            a = -5.54338733e-01,
-            b = -1.76646912e-01,
-            c = -1.76665852e-02,
-            k = 1.01316664e-03
+
+    xplot = np.logspace(-7, -2, 200)
+    fit1, fit2 = scipy.optimize.curve_fit(
+            ed.multigauss,
+            np.power(10., ed.galcenterData[:,0]),
+            ed.galcenterData[:,1]/max(ed.galcenterData[:,1]),
+            [-4.7, -5.5e-1, -1.8e-1, -1.8e-2, 1.0e-3]
+    )
+    plt.plot(xplot, ed.multigauss(
+            y = xplot,
+            u = fit1[0],
+            a = fit1[1],
+            b = fit1[2],
+            c = fit1[3],
+            k = fit1[4]
         ), color="blue", linestyle='dashed', linewidth=4)
 
+    # Plotting
     plt.legend(fontsize=20)
-    plt.ylabel(r"$e_0$-distribution", fontsize=20)
-    plt.xlabel(r"$e_0$ at $f_{p0}=10$ Hz", fontsize=20)
+    plt.ylabel(r"$e_0*$-distribution", fontsize=20)
+    plt.xlabel(r"$e_0$ at $f_{p0}=10$ Hz (i.e. $e_*$ for $f_{p*}=10$ Hz", fontsize=20)
     plt.xscale('log') 
-    plt.xlim((10**-7, 10**-2))
+    plt.xlim((1.0e-7, 1.0e-2))
     plt.savefig(os.path.join(savepath, 'Figure_2.png'))
 
 
