@@ -72,7 +72,7 @@ from .equations import (
     #lifetime30Msun,
     afe,
     BBHevolve,
-    fpr, 
+    #fpr, 
     integrand,
     snrintsol,
     SNR_LISA,

@@ -421,7 +421,8 @@ def integrand(
                     * (1./ed.SnDECIGOdefault(finterp(t)))
                 )
             )
-        except: 
+        except:
+            pass  
             #print(fpr(t))
 
     return val # Units: s^{-7/3} 
