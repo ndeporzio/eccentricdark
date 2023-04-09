@@ -205,11 +205,12 @@ def dedt(m1, m2, a, e): # equation 1b
     ) #CAUTION: Blows up for e=1
     return val
 
+# Unit checked 
 def tmerge(
-    fp, 
-    e, 
-    m1, #Units: kg
-    m2  #Units: kg 
+    fp, # Units: s^{-1} 
+    e, # Units: none
+    m1, # Units: kg
+    m2  # Units: kg 
 ):
     m = m1 + m2
     mu = ed.m_reduced(m1, m2) 
@@ -225,7 +226,7 @@ def tmerge(
         * np.power(1.0 - e**2 , 7./2.)
     ) #CAUTION: Blows up for e=1
     
-    return val #Units: seconds
+    return val #Units: s
 
 def afe(fp, e, m1, m2): # semi-major axis "a" as a function of "e, fp, m1, m2"
     if e==1.: 
@@ -241,7 +242,10 @@ def afe(fp, e, m1, m2): # semi-major axis "a" as a function of "e, fp, m1, m2"
 
 
 def BBHevolve(                          #Fast 
-    fp0, e0, m1, m2, 
+    fp0, 
+    e0, 
+    m1, 
+    m2, 
     t0=(0.*ed.year_in_seconds), 
     tf=(10.*ed.year_in_seconds), 
     dt=ed.dtevolve,
@@ -329,43 +333,53 @@ def BBHevolve(                          #Fast
         np.array(fp).flatten()
     ]    
 
-def fpr(
-    fp0, 
-    e0, 
-    m1, # in kg
-    m2, # in kg
-    ainterp=None, 
-    einterp=None
-): 
+#def fpr(
+#    fp0, 
+#    e0, 
+#    m1, # in kg
+#    m2, # in kg
+#    ainterp=None, 
+#    einterp=None
+#): 
+#
+#
+#    if e0==1.:
+#        print("ERROR in fpr function. Blows up for e=1!")
+# 
+#    m = m1 + m2
+#
+#    if ((ainterp==None) or (einterp==None)): 
+#        BBHsol = ed.BBHevolve(fp0, e0, m1, m2)
+#        t = BBHsol[0]
+#        a = BBHsol[1]
+#        e = BBHsol[2]
+#        merger = BBHsol[3]
+#    
+#        ainterp = scipy.interpolate.interp1d(t, a)
+#        einterp = scipy.interpolate.interp1d(t, e)
+#
+#    val = (
+#        lambda t : (
+#            np.sqrt(ed.G * m)
+#            * np.power(1. + einterp(t), ed.gamma)
+#            * (1./np.pi)
+#            * np.power(ainterp(t) * (1. - np.power(einterp(t), 2.)), -3./2.)  
+#        )   
+#    ) 
+#    
+#    return val 
 
-    if e0==1.:
-        print("ERROR in fpr function. Blows up for e=1!")
- 
-    m = m1 + m2
-
-    if ((ainterp==None) or (einterp==None)): 
-        BBHsol = ed.BBHevolve(fp0, e0, m1, m2)
-        t = BBHsol[0]
-        a = BBHsol[1]
-        e = BBHsol[2]
-        merger = BBHsol[3]
-    
-        ainterp = scipy.interpolate.interp1d(t, a)
-        einterp = scipy.interpolate.interp1d(t, e)
-
-    val = (
-        lambda t : (
-            np.sqrt(ed.G * m)
-            * np.power(1. + einterp(t), ed.gamma)
-            * (1./np.pi)
-            * np.power(ainterp(t) * (1. - np.power(einterp(t), 2.)), -3./2.)  
-        )   
-    ) 
-    
-    return val 
-
-def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einterp=None, finterp=None,
-    experiment="LISA"): #Fast 
+def integrand(
+    fp0, # Units: s^{-1} 
+    e0, # Units: none
+    m1, # Units: kg
+    m2, # Units: kg 
+    tf=(10.*ed.year_in_seconds), # Units: s
+    ainterp=None, # Units: m
+    einterp=None, # Units: none 
+    finterp=None, # Units: s^{-1} 
+    experiment="LISA"
+): #Fast 
 
     if ((ainterp==None) or (einterp==None) or (finterp==None)):
         BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tf)
@@ -386,14 +400,14 @@ def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einter
         val = (
             lambda t : (
                 #np.power(np.pi * fpr(t), 4./3.)
-                np.power(np.pi * finterp(t), 4./3.)
-                * np.power(1. - einterp(t), 3./2.)
+                np.power(np.pi * finterp(t), 4./3.) # Units: s^{-4/3}
+                * np.power(1. - einterp(t), 3./2.) # Units: none 
                 #*(1./2.32024693e-41) #LISA hn,min 
                 #*(1./6.7963438e-49) #DECIGO hn,min
                 #* (1./ed.SnLISAdefault(fpr(t)))
-                * (1./ed.SnLISAdefault(finterp(t)))
+                * (1./ed.SnLISAdefault(finterp(t))) # Units: s^{-1} 
             )
-        )
+        ) # Units: s^{-7/3} 
     elif experiment=="DECIGO":
         try: 
             val = (
@@ -408,18 +422,18 @@ def integrand(fp0, e0, m1, m2, tf=(10.*ed.year_in_seconds), ainterp=None, einter
                 )
             )
         except: 
-            print(fpr(t))
+            #print(fpr(t))
 
-    return val 
+    return val # Units: s^{-7/3} 
 
 def snrintsol(
-    fp0, # signal frequency in detector
-    e0, # signal eccentricity in detector
-    m1, # binary mass 1 in kg
-    m2, # binary mass 2 in kg 
-    ttoday, # observation time in seconds 
+    fp0, # Units: s^{-1} (signal frequency in detector)
+    e0, # Units: none (signal eccentricity in detector)
+    m1, # Units: kg (binary mass 1)
+    m2, # Units: kg (binary mass 2)
+    ttoday, # Units: s (observation time in seconds)  
     experiment="LISA",
-    diagnose=True
+    diagnose=False
 ): #Slow
      
     BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
@@ -442,52 +456,63 @@ def snrintsol(
         else: 
             tf = min(ttoday, merger) 
     
+        #CAUTION - potential for small dt to make very slow         
+        #dt = min(tf*1.0e-3, np.min(np.diff(t)))
+        dt = tf*1.0e-3
+        t0 = (0. * ed.year_in_seconds)
+
+
         if (diagnose==True): 
-            print("Interpolation Range (Tmin, Tmax, Tf, Nt): ", np.amin(t), np.amax(t), tf, len(t))
-        
+            print("BBHevolve Tmin: ", np.amin(t)/ed.year_in_seconds, " years")
+            print("BBHevolve Tmax: ", np.amax(t)/ed.year_in_seconds, " years")
+            print("User specified max observe time (ttoday): ", ttoday/ed.year_in_seconds, " years")
+            if (merger==None): 
+                print("No merger happened.")
+            else: 
+                print("A merger happened, at tmerge = ", merger/ed.year_in_seconds, " years")
+            print("Integrating BBH evolution with this many time steps: ", len(t))
+            print("Between t0 = ", t0/ed.year_in_seconds, " years and tf = ", tf/ed.year_in_seconds, " years")
+            print("With fixed time step size dt = ", dt/ed.year_in_seconds, " years")
     
         t = [0.]
         solp = [0.]
         sol = [0.]
 
-        dt = 1.0e-3*tf
-        #dt = np.min(1.0e-3*tf, np.min(np.diff(t)))
-        t0 = (0. * ed.year_in_seconds)
-    
         while t[-1]<tf: 
             N=len(t)
             #t.append(t[N-1]+dt[N-1])
             t.append(t[N-1] + dt)
             solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, finterp, experiment)(t[N]))
-           # sol.append(sol[N-1] + solp[N]*dt[N-1])
-            sol.append(sol[N-1] + solp[N] * dt)
+            #sol.append(sol[N-1] + solp[N]*dt[N-1])
+
+            sol.append(sol[N-1] + solp[N] * dt) # Units: s^{-4/3} 
+
             #if (dt[N-1] < ed.time_integral_cutoff_factor*dt[0]):
              #   print('cutoff used')
              #   return sol[-1]
-     
-           
      
         if(diagnose == True):
             print("N: ", N, "tf: ", tf, "t0: ", t0, "dt: ", dt)
             plt.plot(t, ainterp(t))   
      
-        #return sol[int(0.9*len(sol))]
-        return sol[-1]
         #return (t, solp, sol) 
+        #return sol[int(0.9*len(sol))]
+
+        return sol[-1] # Units: s^{-4/3} 
 
 
 def SNR_LISA(
-    r, # distance in pc 
-    fp0, # frequency in detector 
-    e0, # eccentricity in detector
-    m1, # binary mass 1 in kg 
-    m2, # binary mass 2 in kg 
-    ttoday, # observation time in seconds
+    r, # Units: m (distance of source) 
+    fp0, # Units: s^{-1} (frequency in detector) 
+    e0, # Units: none (eccentricity in detector)
+    m1, # Units: kg (binary mass 1)
+    m2, # Units: kg (binary mass 2)
+    ttoday, # Units: s (observation time) 
     experiment="LISA"
 ): 
     
-    m = m1 + m2
-    mu = ed.m_reduced(m1, m2) 
+    m = m1 + m2 # Units: kg
+    mu = ed.m_reduced(m1, m2) # Units: kg  
 
     if(type(e0) != list):
         e0_Arr = [e0]
@@ -503,17 +528,16 @@ def SNR_LISA(
         * ed.snrintsol(fp0, e0_Arr[0], m1, m2, ttoday, experiment)
     )
 
-
-    return val 
+    return val # Units: none 
 
 
 def roffmSNR8(
-    r, # distance in Mpc 
-    fp, # peak frequency of signal 
-    e,  # Eccentricity of signal 
-    m1,  # Binary 1 mass in kg
-    m2, # Binary 2 mass in kg
-    t, #years
+    r, # Units: Mpc (distance of source in megaparsecs) 
+    fp, # Units: s^{-1} (peak frequency of signal) 
+    e,  # Units: none (eccentricity of signal) 
+    m1,  # Units: kg (binary 1 mass)
+    m2, # Units: kg (binary 2 mass)
+    t, # Units: years (observation time in years)  
     experiment="LISA"
     ): 
 
@@ -528,8 +552,10 @@ def roffmSNR8(
     SNRVal = 8.
 
     return (
-        (r/SNRVal)
-        * ((10.**6) * ed.pc_in_meters)
-        * ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds, experiment)
-    )
+        # This only works because SNR scales linearly with distance 
+        # i.e. deccreasing distance by factor of 2 increases SNR by a factor of 2 
+        (r * ((10.**6) * ed.pc_in_meters)) # Units: m (distance of source in meters)       
+        * (1./SNRVal) # Units: none 
+        * ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds, experiment) # Units: none 
+    ) # Units: m (distance at which observation of system can happen with SNR=8) 
 

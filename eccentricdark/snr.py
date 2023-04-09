@@ -2,27 +2,6 @@ import eccentricdark as ed
 import numpy as np
 import scipy 
 
-def SnLISA(fp, NModel, AModel): 
-    if (AModel=="A1"): 
-        L = 1.0e9
-    elif (AModel=="A2"): 
-        L = 2.0e9
-    elif (AModel=="A5"): 
-        L = 5.0e9
-
-    val = (
-        (20./3.)
-        * (
-            (4.0 * ed.SnAcc(fp, NModel))
-            + ed.SnSn(fp, AModel)
-            + ed.SnOmn(fp) 
-        )
-        * np.power(L, -2.)
-        * (1. + np.power(fp/(0.41*ed.c/(2.0*L)), 2.))  
-    ) 
-
-    return val 
-
 def SnAcc(fp, NModel): 
     if (NModel=="N1"):
         return (
@@ -47,6 +26,31 @@ def SnSn(fp, AModel):
 
 def SnOmn(fp): 
     return 2.65e-23 
+
+def SnLISA(
+    fp, # Units: s^{-1}
+    NModel, # String - specify LISA model
+    AModel # String - specify LISA model
+): 
+    if (AModel=="A1"): 
+        L = 1.0e9
+    elif (AModel=="A2"): 
+        L = 2.0e9
+    elif (AModel=="A5"): 
+        L = 5.0e9
+
+    val = (
+        (20./3.)
+        * (
+            (4.0 * ed.SnAcc(fp, NModel))
+            + ed.SnSn(fp, AModel)
+            + ed.SnOmn(fp) 
+        )
+        * np.power(L, -2.)
+        * (1. + np.power(fp/(0.41*ed.c/(2.0*L)), 2.))  
+    ) 
+
+    return val # Units: s (should be)
 
 def SnGal(fp, NModel, AModel): 
     if (AModel=="A1"): 
@@ -74,8 +78,12 @@ def SnGal(fp, NModel, AModel):
         else:
             return 0. 
 
-def SnLISAdefault(fp): 
-    return ed.SnLISA(fp, "N2", "A5") + ed.SnGal(fp, "N2", "A5")
+    # output # Units: s (should be) 
+
+def SnLISAdefault( # Output LISA power spectral density 
+    fp # Units: s^{-1}
+): 
+    return ed.SnLISA(fp, "N2", "A5") + ed.SnGal(fp, "N2", "A5") # Units: s  
 
 def SnDECIGOdefault(fp):
     fp_vals = np.array([2.14350692e-03, 2.43759044e-03, 2.77202145e-03, 3.08550647e-03,
