@@ -45,8 +45,8 @@ matplotlib.rcParams.update({
 
 imbh = False
 fig1 = False 
-fig2 = True 
-fig3 = False 
+fig2 = False 
+fig3 = True 
 fig4 = False
 extra1 = False
 extra2 = False 
@@ -380,21 +380,21 @@ if fig2==True:
 # Check LISA SNR - Figure 3
 if fig3==True:
     #Fig 3 left 
-    xplot = np.linspace(0., 1., 501)
+    xplot = np.linspace(0., 1., 51)
     snr_ref = ed.SNR_LISA(
-        r = 1.0e8,
+        r = 100.*1.0e6*ed.pc_in_meters,
         fp0 = 5.0e-3, 
         e0 = 1.0e-12,  
-        m1 = 50., 
-        m2 = 50., 
-        ttoday = 10. * ed.year_in_seconds
+        m1 = 50.*ed.msun_in_kg, 
+        m2 = 50.*ed.msun_in_kg, 
+        ttoday = 10.*ed.year_in_seconds
     )
     snr_vals = np.array([ed.SNR_LISA(
-        r = 1.0e8,
+        r = 100.*1.0e6*ed.pc_in_meters,
         fp0 = 5.0e-3, 
         e0 = xval,  
-        m1 = 50., 
-        m2 = 50., 
+        m1 = 50.*ed.msun_in_kg, 
+        m2 = 50.*ed.msun_in_kg, 
         ttoday = 10. * ed.year_in_seconds
     ) for xidx, xval in enumerate(xplot)])
     yplot = snr_vals/snr_ref
