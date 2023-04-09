@@ -450,7 +450,8 @@ def snrintsol(
         solp = [0.]
         sol = [0.]
 
-        dt = np.min(1.0e-3*tf, np.min(np.diff(t)))
+        dt = 1.0e-3*tf
+        #dt = np.min(1.0e-3*tf, np.min(np.diff(t)))
         t0 = (0. * ed.year_in_seconds)
     
         while t[-1]<tf: 
