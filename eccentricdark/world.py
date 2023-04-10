@@ -22,7 +22,9 @@ class World:
         self.estar_distribution=None
         self.estar_args=None
         self.estar=None
-        self.estar_invcdf = None
+        self.estar_invcdf=None
+
+        self.e_of_fp_interp=None
 
         self.chi_max = chi_max
         self.annual_merger_rate = annual_merger_rate
@@ -150,7 +152,12 @@ class World:
         self.estar_sampler = (lambda : self.estar_invcdf(np.random.random(1))) 
 
         print("Generating eccentricity samples...") 
-        self.estar = self.estar_invcdf(np.random.random(len(self.mc_values)))
+        #self.estar = self.estar_invcdf(np.random.random(len(self.mc_values)))
+        self.estar = [0]*(len(self.mc_values))
+
+        for mc_idx, mc_val in enumerate(self.mc_values):
+            self.estar[mc_idx] = self.estar_sampler()[0]
+
 
     def solve_evolution(
         self,
@@ -265,7 +272,8 @@ class World:
     def solve_snr(
         self,
         t=10. 
-    ): 
+    ):
+        print("Evaluating SNR...")  
         self.r_of_SNR8 = [0]*(len(self.mc_values))
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
@@ -278,11 +286,16 @@ class World:
                 t
             )/((10.**6)*ed.pc_in_meters)
 
-    def initialize_fp(self, fpmin_forced=1.0e-9): 
-        self.fp = [0]*(len(self.mc_values))
+    def initialize_fp(self, fpmin_forced=1.0e-9):
+        if (self.e_of_fp_interp==None):
+            print("Need to 'solve_evolution(...)' first...")
+            return
+
+        print("Initializing binary peak frequencies...") 
+        self.fp0 = [0]*(len(self.mc_values))
     
         for mc_idx, mc_val in enumerate(self.mc_values):
-            self.fp[mc_idx] = ed.dtdfp_sampler(
+            self.fp0[mc_idx] = ed.dtdfp_sampler(
                 mc_val, 
                 self.e_of_fp_interp[mc_idx], 
                 max(self.fp_min[mc_idx], fpmin_forced), 
@@ -292,25 +305,17 @@ class World:
             ) 
 
     def solve_theta(self, e_cut, verbose=0):
+        print("Evaluating SNR and eccentricity template cutoffs...") 
         self.e_cut = e_cut
         self.theta_cut = [0]*(len(self.mc_values))
         self.fp_cut = [0]*(len(self.mc_values))
 
-        print(np.log10(self.fp))
-
         for mc_idx, mc_val in enumerate(self.mc_values): 
             self.fp_cut[mc_idx] = max(self.fp_of_e_interp[mc_idx](e_cut), self.fp_min[mc_idx])
 
-            #self.theta_cut[mc_idx] = (lambda fp, mc_idx=mc_idx: (
-            #    0. if (fp < self.fp_cut[mc_idx]) else (
-            #    0. if (self.r_of_SNR8[mc_idx](fp) < self.chi_values[mc_idx]) else
-            #    1.
-            #    )
-            #))
+            rsnr8 = self.r_of_SNR8[mc_idx](self.fp0[mc_idx])
 
-            rsnr8 = self.r_of_SNR8[mc_idx](self.fp[mc_idx])
-
-            if (self.fp[mc_idx]<self.fp_cut[mc_idx]): 
+            if (self.fp0[mc_idx]<self.fp_cut[mc_idx]): 
                 self.theta_cut[mc_idx]=0
             elif (rsnr8 < self.chi_values[mc_idx]):
                 self.theta_cut[mc_idx]=0
@@ -319,12 +324,12 @@ class World:
             
             
             if (verbose>0): 
-                print("Binary "+f"{mc_idx:d}"+"\t" 
-                +f"{np.log10(self.fp[mc_idx]):.3e}"+"\t"
-                +f"{np.log10(self.fp_cut[mc_idx]):.3e}"+"\t"
-                +f"{rsnr8:.2f}"+"\t"
-                +f"{self.chi_values[mc_idx]:.2f}"+"\t"
-                +f"{self.theta_cut[mc_idx]:d}")
+                print("Binary: "+f"{mc_idx:d}"+", " 
+                +"fp0: "+f"{np.log10(self.fp0[mc_idx]):.3e}"+", "
+                +"log10(fpcut): "+f"{np.log10(self.fp_cut[mc_idx]):.3e}"+", "
+                +"r(snr>8): "+f"{rsnr8:.2f}"+", "
+                +"chi: "+f"{self.chi_values[mc_idx]:.2f}"+", "
+                +"theta_cut: "+f"{self.theta_cut[mc_idx]:d}")
 
 
     #def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):

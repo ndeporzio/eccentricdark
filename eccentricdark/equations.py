@@ -241,28 +241,37 @@ def afe(fp, e, m1, m2): # semi-major axis "a" as a function of "e, fp, m1, m2"
     return val 
 
 
-def BBHevolve(                          #Fast 
-    fp0, 
-    e0, 
-    m1, 
-    m2, 
-    t0=(0.*ed.year_in_seconds), 
-    tf=(10.*ed.year_in_seconds), 
-    dt=ed.dtevolve,
-    evolve_factor = 0.001, 
-    verbose=0
+def BBHevolve(                          
+    fp0,                            # Units: s^{-1} (INITIAL frequency of 
+                                    # binary at t=t0)
+    e0,                             # Units: none (INITIAL eccentricity of 
+                                    # binary at t=t0) 
+    m1,                             # Units: kg (mass of binary 1) 
+    m2,                             # Units: kg (mass of binary 2) 
+    t0=(0.*ed.year_in_seconds),     # Units: s (INITIAL time of binary 
+                                    # system evolution) 
+    tf=(10.*ed.year_in_seconds),    # Units: s (FINAL time of binary system evolution to evolve to) 
+    dt=ed.dtevolve,                 # Units: s (time step to take in binary evolution) 
+    evolve_factor = 0.001,          # Units: none (upper limit on relative change in 
+                                    # a(t) or fp(t) in a time step before time step 
+                                    # needs to adaptively be made smaller)  
+    verbose=0                       # Units: none (output text verbosity) 
 ):
 
-    #print('BBHevolve params', fp0, e0, m1, m2, t0, tf)
-    
+    # Calculates black hole binary semimajor axis a(t), eccentricity e(t), and peak emission frequency fp(t)
+    # as a function of time given initial state of the system. Time step adaptively becomes smaller if 
+    # observable quantities begin to change too quickly. 
+    #
+    # Output: t, a, e, merger time, merger index, fp 
+    # General speed: Fast  
+
     try: 
         tmerge = ed.tmerge(fp0, e0, m1, m2)
     except:
         print('tmerge blew up')
         tmerge = 1.0*ed.year_in_seconds
 
-    #CAUTION: May need to be smaller than this for merger time steps... 
-    dt = tmerge/1.0e3
+    dt = min(dt, tmerge/1.0e3, 1.0*ed.year_in_seconds, tf/1.0e3) 
 
     m = m1 + m2
     merger = None
@@ -285,13 +294,13 @@ def BBHevolve(                          #Fast
     N = 1
     Rs = (6.*ed.G*m/(ed.c**2)) 
     #Rs = (2.*ed.G*m/(ed.c**2)) 
-    while (a[N-1] > Rs):  
+    while ((a[N-1] > Rs) and (t[-1]< (tf+2.0*dt))):  
         t.append(0)
         a.append(0)
         e.append(0)
         fp.append(0)
-        ap.append(0) #Maybe don't do this? 
-        ep.append(0) #Maybe don't do this? 
+        ap.append(0)  
+        ep.append(0)  
 
         good_evolve=False
         while good_evolve==False: 
@@ -319,11 +328,10 @@ def BBHevolve(                          #Fast
                 good_evolve=True
                 N = len(t)
 
-    merger = t[-1]
-    merger_idx = (len(t)-1)
+    if (a[-1]<Rs): 
+        merger = t[-1]
+        merger_idx = (len(t)-1)
     
-    #print('BBHevolve Return', t[-1], a[-1], e[-1])
-       
     return [
         np.array(t).flatten(), 
         np.array(a).flatten(), 
@@ -370,19 +378,32 @@ def BBHevolve(                          #Fast
 #    return val 
 
 def integrand(
-    fp0, # Units: s^{-1} 
-    e0, # Units: none
-    m1, # Units: kg
-    m2, # Units: kg 
-    tf=(10.*ed.year_in_seconds), # Units: s
-    ainterp=None, # Units: m
-    einterp=None, # Units: none 
-    finterp=None, # Units: s^{-1} 
+    fp0, # Units: s^{-1} (INITIAL frequency of binary at t=t0) 
+    e0, # Units: none (INITIAL eccentricity of binary at t=t0)
+    m1, # Units: kg (mass of binary 1) 
+    m2, # Units: kg (mass of binary 2) 
+    tf, # Units: s (time after entering observation window you wish to define domain of integrand function over) 
+    ainterp=None, # Units: m (a(t) interp function, calculated from BBHevolve if not provided)
+    einterp=None, # Units: none (e(t) interp function, calculated from BBHevolve if not provided)
+    finterp=None, # Units: s^{-1} (fp(t) interp function, calculated from BBHevolve if not provided)
     experiment="LISA"
-): #Fast 
+): 
+
+    # Calculates integrand of SNR integral as a function of time, t, given
+    # the initial state of black hole binary system.
+    #
+    # Output Units: s^{-7/3}   
+    # General speed: Fast 
 
     if ((ainterp==None) or (einterp==None) or (finterp==None)):
-        BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tf)
+        BBHsol = ed.BBHevolve(
+            fp0, 
+            e0, 
+            m1, 
+            m2, 
+            t0=0.*ed.year_in_seconds,
+            tf=tf
+        )
         t = BBHsol[0]
         a = BBHsol[1]
         e = BBHsol[2]
@@ -425,24 +446,24 @@ def integrand(
             pass  
             #print(fpr(t))
 
-    return val # Units: s^{-7/3} 
+    return val # Units: s^{-7/3} (interpolating function for SNR integrand as a function of time) 
 
 def snrintsol(
-    fp0, # Units: s^{-1} (signal frequency in detector)
-    e0, # Units: none (signal eccentricity in detector)
-    m1, # Units: kg (binary mass 1)
-    m2, # Units: kg (binary mass 2)
-    ttoday, # Units: s (observation time in seconds)  
+    fp0, # Units: s^{-1} (INITIAL frequency of binary in detector at t=t0) 
+    e0, # Units: none (INITIAL eccentricity of binary in detector at t=t0) 
+    m1, # Units: kg (mass of binary 1)
+    m2, # Units: kg (mass of binary 2)
+    tobserve, # Units: s (max time in seconds that binary is observed after signal first appears in detector)  
     experiment="LISA",
     diagnose=False
-): #Slow
+): 
      
-    BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=ttoday)
+    BBHsol = ed.BBHevolve(fp0, e0, m1, m2, tf=tobserve)
     t = BBHsol[0]
     a = BBHsol[1]
     e = BBHsol[2]
-    merger = BBHsol[3]
-    merger_idx = BBHsol[4]
+    tmerger = BBHsol[3]
+    tmerger_idx = BBHsol[4]
     f = BBHsol[5]
 
     if (len(t)<2): 
@@ -452,93 +473,68 @@ def snrintsol(
         einterp = scipy.interpolate.interp1d(t, e)
         finterp = scipy.interpolate.interp1d(t, f) 
     
-        if (merger==None): 
-            tf = ttoday 
+        if (tmerger==None): 
+            tf = tobserve
         else: 
-            tf = min(ttoday, merger) 
+            tf = min(tobserve, tmerger) 
     
-        #CAUTION - potential for small dt to make very slow         
-        #dt = min(tf*1.0e-3, np.min(np.diff(t)))
-        dt = tf*1.0e-3
-        t0 = (0. * ed.year_in_seconds)
-
-
         if (diagnose==True): 
             print("BBHevolve Tmin: ", np.amin(t)/ed.year_in_seconds, " years")
             print("BBHevolve Tmax: ", np.amax(t)/ed.year_in_seconds, " years")
-            print("User specified max observe time (ttoday): ", ttoday/ed.year_in_seconds, " years")
-            if (merger==None): 
+            print("User specified max observe time (ttoday): ", tobserve/ed.year_in_seconds, " years")
+            if (tmerger==None): 
                 print("No merger happened.")
             else: 
-                print("A merger happened, at tmerge = ", merger/ed.year_in_seconds, " years")
+                print("A merger happened, at tmerge = ", tmerger/ed.year_in_seconds, " years")
             print("Integrating BBH evolution with this many time steps: ", len(t))
-            print("Between t0 = ", t0/ed.year_in_seconds, " years and tf = ", tf/ed.year_in_seconds, " years")
-            print("With fixed time step size dt = ", dt/ed.year_in_seconds, " years")
-    
-        t = [0.]
-        solp = [0.]
-        sol = [0.]
+            print("Between t0 = ", 0., " years and tf = ", tf/ed.year_in_seconds, " years")
 
-        while t[-1]<tf: 
-            N=len(t)
-            #t.append(t[N-1]+dt[N-1])
-            t.append(t[N-1] + dt)
-            solp.append(ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, finterp, experiment)(t[N]))
-            #sol.append(sol[N-1] + solp[N]*dt[N-1])
+        dXdt = []
+        X = [0.]
+        idx = 0
 
-            sol.append(sol[N-1] + solp[N] * dt) # Units: s^{-4/3} 
-
-            #if (dt[N-1] < ed.time_integral_cutoff_factor*dt[0]):
-             #   print('cutoff used')
-             #   return sol[-1]
+        integrand = ed.integrand(fp0, e0, m1, m2, tf, ainterp, einterp, finterp, experiment)
+        while t[idx]<tf:
+            if (diagnose==True): 
+                print("Integrating time ", t[idx]/ed.year_in_seconds, " of ", tf/ed.year_in_seconds, " years. X = ", X[-1]) 
+            dXdt.append(integrand(t[idx]))
+            X.append(X[idx] + dXdt[idx]*(t[idx+1]-t[idx])) # Units: s^{-4/3} 
+            idx+=1
      
-        if(diagnose == True):
-            print("N: ", N, "tf: ", tf, "t0: ", t0, "dt: ", dt)
-            plt.plot(t, ainterp(t))   
-     
-        #return (t, solp, sol) 
-        #return sol[int(0.9*len(sol))]
-
-        return sol[-1] # Units: s^{-4/3} 
+        return X[-1] # Units: s^{-4/3} 
 
 
 def SNR_LISA(
-    r, # Units: m (distance of source) 
-    fp0, # Units: s^{-1} (frequency in detector) 
-    e0, # Units: none (eccentricity in detector)
-    m1, # Units: kg (binary mass 1)
-    m2, # Units: kg (binary mass 2)
-    ttoday, # Units: s (observation time) 
+    r, # Units: m (distance of binary system from the detector) 
+    fp0, # Units: s^{-1} (INITIAL frequency of binary in detector at t=t0) 
+    e0, # Units: none (INITIAL eccentricity of binary in detector at t=t0)
+    m1, # Units: kg (mass of binary 1)
+    m2, # Units: kg (mass of binary 2)
+    tobserve, # Units: s (max time in seconds that binary is observed after signal first appears in detector)   
     experiment="LISA"
 ): 
     
     m = m1 + m2 # Units: kg
     mu = ed.m_reduced(m1, m2) # Units: kg  
 
-    if(type(e0) != list):
-        e0_Arr = [e0]
-
-    else:
-        e0_Arr = e0
-
     val = np.sqrt(
         (2.*64./5.) 
         * np.power(ed.c, -8.) 
         * np.power(r, -2.) 
         * np.power(ed.G * np.power(mu, 3./5.) * np.power(m, 2./5.), 10./3.)
-        * ed.snrintsol(fp0, e0_Arr[0], m1, m2, ttoday, experiment)
+        * ed.snrintsol(fp0, e0, m1, m2, tobserve, experiment)
     )
 
     return val # Units: none 
 
 
 def roffmSNR8(
-    r, # Units: Mpc (distance of source in megaparsecs) 
-    fp, # Units: s^{-1} (peak frequency of signal) 
-    e,  # Units: none (eccentricity of signal) 
-    m1,  # Units: kg (binary 1 mass)
-    m2, # Units: kg (binary 2 mass)
-    t, # Units: years (observation time in years)  
+    r, # Units: Mpc (distance of binary system from the detector)  
+    fp0, # Units: s^{-1} (INITIAL frequency of binary in detector at t=t0)
+    e0,  # Units: none (INITIAL eccentricity of binary in detector at t=t0)
+    m1,  # Units: kg (mass of binary 1)
+    m2, # Units: kg (mass of binary 2)
+    tobserve, # Units: years (max time in seconds that binary is observed after signal first appears in detector)   
     experiment="LISA"
     ): 
 
@@ -557,6 +553,14 @@ def roffmSNR8(
         # i.e. deccreasing distance by factor of 2 increases SNR by a factor of 2 
         (r * ((10.**6) * ed.pc_in_meters)) # Units: m (distance of source in meters)       
         * (1./SNRVal) # Units: none 
-        * ed.SNR_LISA(r*(10.**6)*ed.pc_in_meters, fp, e, m1, m2, t*ed.year_in_seconds, experiment) # Units: none 
+        * ed.SNR_LISA(
+            r*(10.**6)*ed.pc_in_meters, 
+            fp0, 
+            e0, 
+            m1,
+            m2, 
+            tobserve*ed.year_in_seconds, 
+            experiment
+        ) # Units: none 
     ) # Units: m (distance at which observation of system can happen with SNR=8) 
 
