@@ -46,7 +46,7 @@ matplotlib.rcParams.update({
 imbh = False
 fig1 = False 
 fig2 = False 
-fig3 = True 
+fig3 = False 
 fig4 = False
 extra1 = False
 extra2 = False 
@@ -502,7 +502,7 @@ if fig4==True:
     
     #Visualize binary eccentricity distributions
     plt.figure(figsize=(15, 7.5))
-    plt.hist(world1.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 1")
+    plt.hist(world1.estar, density=False, bins=np.logspace(-6, -3, 91), label="world 1")
     #plt.hist(world2.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 2")
     #plt.hist(world3.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 3")
     #plt.hist(world4.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 4")
@@ -522,13 +522,33 @@ if fig4==True:
     #world5.solve_evolution(mode="fixed")
     
     #Evaluate LISA SNR for each world
-    print("Generating SNR functions...") 
     world1.solve_snr()
     #world2.solve_snr()
     #world3.solve_snr()
     #world4.solve_snr()
     #world5.solve_snr()
     
+    #Initialize peak frequencies for binaries
+    world1.initialize_fp()
+    #world2.initialize_fp()
+    #world3.initialize_fp()
+    #world4.initialize_fp()
+    #world5.initialize_fp()
+
+    plt.figure(figsize=(15, 7.5))
+    plt.hist(world1.fp, density=False, bins=np.logspace(-4, -3, 101), label="world 1")
+    #plt.hist(world2.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 2")
+    #plt.hist(world3.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 3")
+    #plt.hist(world4.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 4")
+    #plt.hist(world5.estar, density=False, bins=np.logspace(-6, -3, 7), label="world 5")
+    plt.xlabel(r'$f_{\rm p, ini}$', fontsize=20)
+    plt.ylabel('Counts', fontsize=20)
+    plt.legend()
+    plt.grid(True, which='both', axis='both')
+    plt.xscale('log')
+    plt.savefig(os.path.join(savepath, 'fpini_dist.png'))
+
+
     #Count number of observable binaries given maximally observable eccentricity
     e_cutoffs=[0.01, 0.1, 0.4, 0.9]
     fpbins = np.logspace(-2.7, -1.5, 13)
