@@ -309,6 +309,8 @@ class World:
         self.e_cut = e_cut
         self.theta_cut = [0]*(len(self.mc_values))
         self.fp_cut = [0]*(len(self.mc_values))
+        self.t_merge = [0]*(len(self.mc_values))
+        self.ligo_cut = [0]*(len(self.mc_values))
 
         for mc_idx, mc_val in enumerate(self.mc_values): 
             self.fp_cut[mc_idx] = max(self.fp_of_e_interp[mc_idx](e_cut), self.fp_min[mc_idx])
@@ -322,14 +324,27 @@ class World:
             else: 
                 self.theta_cut[mc_idx]=1
             
-            
+            self.t_merge[mc_idx] = ed.tmerge(
+                self.fp0[mc_idx], 
+                self.e_of_fp_interp[mc_idx](self.fp0[mc_idx]), 
+                self.m1_values[mc_idx]*ed.msun_in_kg, 
+                self.m2_values[mc_idx]*ed.msun_in_kg
+            ) 
+
+            if (self.t_merge[mc_idx]<(10.*ed.year_in_seconds)): 
+                self.ligo_cut[mc_idx]=1  
+
             if (verbose>0): 
-                print("Binary: "+f"{mc_idx:d}"+", " 
-                +"fp0: "+f"{np.log10(self.fp0[mc_idx]):.3e}"+", "
-                +"log10(fpcut): "+f"{np.log10(self.fp_cut[mc_idx]):.3e}"+", "
-                +"r(snr>8): "+f"{rsnr8:.2f}"+", "
-                +"chi: "+f"{self.chi_values[mc_idx]:.2f}"+", "
-                +"theta_cut: "+f"{self.theta_cut[mc_idx]:d}")
+                print(
+                    "Binary: "+f"{mc_idx:d}"+", " 
+                    +"fp0: "+f"{np.log10(self.fp0[mc_idx]):.3e}"+", "
+                    +"log10(fpcut): "+f"{np.log10(self.fp_cut[mc_idx]):.3e}"+", "
+                    +"r(snr>8): "+f"{rsnr8:.2f}"+", "
+                    +"chi: "+f"{self.chi_values[mc_idx]:.2f}"+", "
+                    +"theta_cut: "+f"{self.theta_cut[mc_idx]:d}"
+                    +"t_merge: "+f"{self.t_merge[mc_idx]/ed.year_in_seconds:.2f}"+" yrs"
+                    +"ligo_cut: "+f"{self.ligo_cut[mc_idx]:d}"
+                )
 
 
     #def count_N(self, log10fmin, log10fmax, Max_N_binaries=-1):
